@@ -1,0 +1,14 @@
+embedly:
+  build: ./embedly
+  env_file: .env
+  expose:
+    - "7001"
+  restart: always
+
+nginx:
+  build: ./nginx
+  links:
+    - embedly
+  ports:
+    - "80:80"
+  restart: always

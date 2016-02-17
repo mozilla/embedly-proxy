@@ -8,6 +8,7 @@ from flask import Flask, request, Response
 
 EMBEDLY_URL = 'https://api.embedly.com/1/extract'
 EMBEDLY_KEY = os.environ['EMBEDLY_KEY']
+print 'Found Embedly Key', EMBEDLY_KEY
 
 
 app = Flask(__name__)

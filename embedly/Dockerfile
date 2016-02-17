@@ -4,4 +4,4 @@ WORKDIR /embedly
 COPY . /embedly
 RUN pip install -r /embedly/requirements.txt
 
-CMD ["/usr/bin/gunicorn embedly:app -b localhost:7001"] 
+CMD ["/usr/local/bin/gunicorn", "--log-file=-", "embedly:app", "-b 0.0.0.0:7001"]
