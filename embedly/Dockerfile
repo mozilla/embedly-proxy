@@ -1,5 +1,6 @@
-FROM python:2.7 
+FROM python:2.7-slim
 
+EXPOSE 7001
 WORKDIR /embedly
 COPY . /embedly
 RUN pip install -r /embedly/requirements.txt
