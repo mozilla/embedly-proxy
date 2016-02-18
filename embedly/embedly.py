@@ -3,18 +3,25 @@ import urllib
 import json
 
 import requests
+import redis
 from flask import Flask, request, Response
 
 
 EMBEDLY_URL = 'https://api.embedly.com/1/extract'
 EMBEDLY_KEY = os.environ['EMBEDLY_KEY']
-print 'Found Embedly Key', EMBEDLY_KEY
-
 
 app = Flask(__name__)
+redis_client = redis.StrictRedis(host=os.environ['REDIS_URL'], port=6379, db=0)
 
 
-def get_urls(urls):
+def get_cached_url(url):
+    cached_data = redis_client.get(url)
+
+    if cached_data is not None:
+        return json.loads(cached_data)
+
+
+def get_urls_from_embedly(urls):
     params = '&'.join([
         'key={}'.format(EMBEDLY_KEY),
         'urls={}'.format(','.join([urllib.quote_plus(url) for url in urls])),
@@ -24,16 +31,37 @@ def get_urls(urls):
     response = requests.get(request_url)
 
     try:
-        url_data = json.loads(response.content)
+        url_data = {
+            data['original_url']: data
+            for data in json.loads(response.content)
+        }
     except ValueError:
-        url_data = []
+        url_data = {}
 
     return url_data
 
 
 @app.route('/extract')
 def extract_urls():
-    url_data = get_urls(request.args.getlist('urls'))
+    urls = request.args.getlist('urls')
+    url_data = {}
+
+    uncached_urls = []
+    for url in urls:
+        cached_url_data = get_cached_url(url)
+
+        if cached_url_data is not None:
+            url_data[url] = cached_url_data
+        else:
+            uncached_urls.append(url)
+
+    if uncached_urls:
+        embedly_url_data = get_urls_from_embedly(uncached_urls)
+
+        for embedly_url, embedly_data in embedly_url_data.items():
+            redis_client.set(embedly_url, json.dumps(embedly_data))
+
+        url_data.update(embedly_url_data)
 
     return Response(
         json.dumps(url_data),

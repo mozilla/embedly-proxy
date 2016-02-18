@@ -1,6 +1,8 @@
 embedly:
   build: ./embedly
   env_file: .env
+  links:
+    - redis
   expose:
     - "7001"
   restart: always
@@ -12,3 +14,6 @@ nginx:
   ports:
     - "80:80"
   restart: always
+
+redis:
+  image: redis
