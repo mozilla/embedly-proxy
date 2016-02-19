@@ -25,7 +25,7 @@ Extract
     The URLs from which to extract metadata.
     They should appear unencoded, and may include protocol.
 
-    ex: `urls=www.mozilla.com&urls=developer.mozilla.org`
+    ex: `urls=http://www.mozilla.com&urls=developer.mozilla.org`
 
 * **Data Params**
 
