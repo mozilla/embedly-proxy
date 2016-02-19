@@ -10,6 +10,8 @@ from flask import Flask, request, Response
 EMBEDLY_URL = 'https://api.embedly.com/1/extract'
 EMBEDLY_KEY = os.environ['EMBEDLY_KEY']
 
+REDIS_TIMEOUT = 24 * 60 * 60
+
 app = Flask(__name__)
 redis_client = redis.StrictRedis(host=os.environ['REDIS_URL'], port=6379, db=0)
 
@@ -19,6 +21,11 @@ def get_cached_url(url):
 
     if cached_data is not None:
         return json.loads(cached_data)
+
+
+def set_cached_url(url, data):
+    redis_client.set(url, json.dumps(data))
+    redis_client.expire(url, REDIS_TIMEOUT)
 
 
 def get_urls_from_embedly(urls):
@@ -59,7 +66,7 @@ def extract_urls():
         embedly_url_data = get_urls_from_embedly(uncached_urls)
 
         for embedly_url, embedly_data in embedly_url_data.items():
-            redis_client.set(embedly_url, json.dumps(embedly_data))
+            set_cached_url(embedly_url, embedly_data)
 
         url_data.update(embedly_url_data)
 
