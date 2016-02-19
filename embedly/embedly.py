@@ -59,11 +59,7 @@ def extract_urls():
         embedly_url_data = get_urls_from_embedly(uncached_urls)
 
         for embedly_url, embedly_data in embedly_url_data.items():
-            redis_client.set(
-                embedly_url,
-                json.dumps(embedly_data),
-                timeout=(24*60*60),
-            )
+            redis_client.set(embedly_url, json.dumps(embedly_data))
 
         url_data.update(embedly_url_data)
 
