@@ -1,10 +1,10 @@
 embedly:
   build: ./embedly
   env_file: .env
-  links:
-    - redis
   expose:
     - "7001"
+  links:
+    - redis
   restart: always
 
 nginx:
