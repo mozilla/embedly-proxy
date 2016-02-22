@@ -5,15 +5,17 @@ import json
 import requests
 import redis
 from flask import Flask, request, Response
+from flask.ext.cors import CORS
 
 
 EMBEDLY_URL = 'https://api.embedly.com/1/extract'
 EMBEDLY_KEY = os.environ['EMBEDLY_KEY']
 
 REDIS_TIMEOUT = 24 * 60 * 60
+redis_client = redis.StrictRedis(host=os.environ['REDIS_URL'], port=6379, db=0)
 
 app = Flask(__name__)
-redis_client = redis.StrictRedis(host=os.environ['REDIS_URL'], port=6379, db=0)
+CORS(app)
 
 
 def get_cached_url(url):
