@@ -45,8 +45,6 @@ def build_embedly_url(urls):
 
 
 def get_urls_from_embedly(urls):
-    response_data = []
-
     request_url = build_embedly_url(urls)
 
     try:
@@ -54,13 +52,21 @@ def get_urls_from_embedly(urls):
     except requests.RequestException:
         response = None
 
+    embedly_data = []
     if response is not None:
         try:
-            response_data = json.loads(response.content)
+            embedly_data = json.loads(response.content)
         except (TypeError, ValueError):
             pass
 
-    return {url_data['original_url']: url_data for url_data in response_data}
+    parsed_data = {}
+    if type(embedly_data) is list:
+        parsed_data = {
+            url_data['original_url']: url_data
+            for url_data in embedly_data
+        }
+
+    return parsed_data
 
 
 @app.route('/extract')
