@@ -57,7 +57,7 @@ def get_urls_from_embedly(urls):
     if response is not None:
         try:
             response_data = json.loads(response.content)
-        except ValueError:
+        except (TypeError, ValueError):
             pass
 
     return {url_data['original_url']: url_data for url_data in response_data}

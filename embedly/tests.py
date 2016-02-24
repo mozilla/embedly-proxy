@@ -50,8 +50,15 @@ class TestEmbedlyProxy(unittest.TestCase):
             for url in self.sample_urls
         }
 
-    def test_empty_query(self):
+    def test_empty_query_returns_200(self):
         response = self.client.get('/extract')
+        self.assertEqual(response.status_code, 200)
+
+        response_data = json.loads(response.data)
+        self.assertEqual(response_data, {})
+
+    def test_empty_get_param_returns_200(self):
+        response = self.client.get('/extract?urls=')
         self.assertEqual(response.status_code, 200)
 
         response_data = json.loads(response.data)
