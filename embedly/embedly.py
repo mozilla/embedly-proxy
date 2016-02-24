@@ -8,14 +8,16 @@ from flask import Flask, request, Response
 from flask.ext.cors import CORS
 
 
-EMBEDLY_URL = 'https://api.embedly.com/1/extract'
-EMBEDLY_KEY = os.environ['EMBEDLY_KEY']
-
-REDIS_TIMEOUT = 24 * 60 * 60
-redis_client = redis.StrictRedis(host=os.environ['REDIS_URL'], port=6379, db=0)
-
 app = Flask(__name__)
 CORS(app)
+
+app.config['EMBEDLY_URL'] = 'https://api.embedly.com/1/extract'
+app.config['EMBEDLY_KEY'] = os.environ.get('EMBEDLY_KEY', None)
+
+app.config['REDIS_TIMEOUT'] = 24 * 60 * 60  # 24 hour timeout
+app.config['REDIS_URL'] = os.environ.get('REDIS_URL', None)
+
+redis_client = redis.StrictRedis(host=app.config['REDIS_URL'], port=6379, db=0)
 
 
 def get_cached_url(url):
@@ -27,27 +29,38 @@ def get_cached_url(url):
 
 def set_cached_url(url, data):
     redis_client.set(url, json.dumps(data))
-    redis_client.expire(url, REDIS_TIMEOUT)
+    redis_client.expire(url, app.config['REDIS_TIMEOUT'])
 
 
-def get_urls_from_embedly(urls):
+def build_embedly_url(urls):
     params = '&'.join([
-        'key={}'.format(EMBEDLY_KEY),
+        'key={}'.format(app.config['EMBEDLY_KEY']),
         'urls={}'.format(','.join([urllib.quote_plus(url) for url in urls])),
     ])
 
-    request_url = '{base}?{params}'.format(base=EMBEDLY_URL, params=params)
-    response = requests.get(request_url)
+    return '{base}?{params}'.format(
+        base=app.config['EMBEDLY_URL'],
+        params=params,
+    )
+
+
+def get_urls_from_embedly(urls):
+    response_data = []
+
+    request_url = build_embedly_url(urls)
 
     try:
-        url_data = {
-            data['original_url']: data
-            for data in json.loads(response.content)
-        }
-    except ValueError:
-        url_data = {}
+        response = requests.get(request_url)
+    except requests.RequestException:
+        response = None
 
-    return url_data
+    if response is not None:
+        try:
+            response_data = json.loads(response.content)
+        except ValueError:
+            pass
+
+    return {url_data['original_url']: url_data for url_data in response_data}
 
 
 @app.route('/extract')
@@ -79,4 +92,4 @@ def extract_urls():
     )
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=7001)
+    app.run(host='0.0.0.0', port=7001)  # pragma: no cover
