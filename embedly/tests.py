@@ -110,6 +110,25 @@ class TestEmbedlyProxy(unittest.TestCase):
         response_data = json.loads(response.data)
         self.assertEqual(response_data, {})
 
+    def test_error_from_embedly_returns_empty_dict(self):
+        mock_response = mock.Mock()
+        mock_response.content = json.dumps({
+            'type': 'error',
+            'error_message': 'error',
+            'error_code': 400,
+        })
+        self.mock_requests_get.return_value = mock_response
+
+        response = self.client.get(self._build_query_url(self.sample_urls))
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(self.mock_redis.get.call_count, 2)
+        self.assertEqual(self.mock_requests_get.call_count, 1)
+
+        response_data = json.loads(response.data)
+        self.assertEqual(response_data, {})
+
     def test_multiple_urls_queried_with_partial_cache_hit(self):
 
         def get_mocked_cache_lookup(url, cached_data):
