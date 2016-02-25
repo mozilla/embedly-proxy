@@ -1,6 +1,7 @@
+import json
 import os
 import urllib
-import json
+import urlparse
 
 import requests
 import redis
@@ -20,16 +21,23 @@ app.config['REDIS_URL'] = os.environ.get('REDIS_URL', None)
 redis_client = redis.StrictRedis(host=app.config['REDIS_URL'], port=6379, db=0)
 
 
+def get_cache_key(url):
+    split_url = urlparse.urlsplit(url)
+    return '{base}{path}'.format(base=split_url.netloc, path=split_url.path)
+
+
 def get_cached_url(url):
-    cached_data = redis_client.get(url)
+    cache_key = get_cache_key(url)
+    cached_data = redis_client.get(cache_key)
 
     if cached_data is not None:
         return json.loads(cached_data)
 
 
 def set_cached_url(url, data):
-    redis_client.set(url, json.dumps(data))
-    redis_client.expire(url, app.config['REDIS_TIMEOUT'])
+    cache_key = get_cache_key(url)
+    redis_client.set(cache_key, json.dumps(data))
+    redis_client.expire(cache_key, app.config['REDIS_TIMEOUT'])
 
 
 def build_embedly_url(urls):
