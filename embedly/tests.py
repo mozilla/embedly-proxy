@@ -2,13 +2,75 @@ import json
 import unittest
 import urllib
 
+import redis
 import requests
 import mock
 
 import embedly
 
 
-class TestEmbedlyProxy(unittest.TestCase):
+class FlaskTest(unittest.TestCase):
+
+    def setUp(self):
+        self.app = embedly.app
+        self.app.config['DEBUG'] = True
+        self.app.config['TESTING'] = True
+
+        self.client = self.app.test_client()
+
+
+class MockRedisTest(object):
+
+    def setUp(self):
+        super(MockRedisTest, self).setUp()
+
+        mock_redis_patcher = mock.patch('embedly.redis_client')
+        self.mock_redis = mock_redis_patcher.start()
+        self.mock_redis.get.return_value = None
+        self.mock_redis.set.return_value = None
+        self.addCleanup(mock_redis_patcher.stop)
+
+
+class TestHeartbeat(MockRedisTest, FlaskTest):
+
+    def test_heartbeat_returns_200_when_redis_available(self):
+        response = self.client.get('/__heartbeat__')
+        self.assertEqual(response.status_code, 200)
+
+    def test_heartbeat_returns_500_when_redis_unavailable(self):
+        self.mock_redis.ping.side_effect = redis.ConnectionError()
+        response = self.client.get('/__heartbeat__')
+        self.assertEqual(response.status_code, 500)
+
+
+class TestLBHeartbeat(MockRedisTest, FlaskTest):
+
+    def test_heartbeat_returns_200_when_redis_available(self):
+        response = self.client.get('/__lbheartbeat__')
+        self.assertEqual(response.status_code, 200)
+
+    def test_heartbeat_returns_200_when_redis_unavailable(self):
+        self.mock_redis.ping.side_effect = redis.ConnectionError()
+        response = self.client.get('/__lbheartbeat__')
+        self.assertEqual(response.status_code, 200)
+
+
+class TestVersion(FlaskTest):
+
+    def test_version_returns_git_info(self):
+        self.app.config['VERSION_INFO'] = json.dumps({
+            'commit': 'abc',
+            'version': 'embedly-proxy-0.1',
+            'source': 'https://github.com/mozilla/embedly-proxy.git'
+        })
+
+        response = self.client.get('/__version__')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, self.app.config['VERSION_INFO'])
+
+
+class TestExtract(MockRedisTest, FlaskTest):
 
     def _get_url_data(self, url):
         return {
@@ -24,21 +86,11 @@ class TestEmbedlyProxy(unittest.TestCase):
         return '/extract?{params}'.format(params=query_params)
 
     def setUp(self):
-        self.app = embedly.app
-        self.app.config['DEBUG'] = True
-        self.app.config['TESTING'] = True
-
-        self.client = self.app.test_client()
+        super(TestExtract, self).setUp()
 
         mock_requests_get_patcher = mock.patch('embedly.requests.get')
         self.mock_requests_get = mock_requests_get_patcher.start()
         self.addCleanup(mock_requests_get_patcher.stop)
-
-        mock_redis_patcher = mock.patch('embedly.redis_client')
-        self.mock_redis = mock_redis_patcher.start()
-        self.mock_redis.get.return_value = None
-        self.mock_redis.set.return_value = None
-        self.addCleanup(mock_redis_patcher.stop)
 
         self.sample_urls = [
             'http://example.com/?this=that&things=stuff',

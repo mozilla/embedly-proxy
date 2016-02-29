@@ -63,3 +63,6 @@ target/
 
 # Docker compose environment
 .env
+
+# Version info
+embedly/version.json
