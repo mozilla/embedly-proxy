@@ -180,7 +180,11 @@ class TestEmbedlyProxy(unittest.TestCase):
 
         response_data = json.loads(response.data)
 
-        self.assertEqual(response_data, self.expected_response)
+        expected_response = {
+            url: self._get_url_data(embedly.get_cache_key(url))
+            for url in self.sample_urls
+        }
+        self.assertEqual(response_data, expected_response)
 
     def test_protocol_and_query_are_removed_from_cache_key(self):
 
