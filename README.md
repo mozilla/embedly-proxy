@@ -3,6 +3,9 @@
 A simple python/flask app which proxies requests to the embed.ly service and masks the 
 application API key.
 
+## Build
+[![Circle CI](https://circleci.com/gh/mozilla/embedly-proxy/tree/master.svg?style=svg)](https://circleci.com/gh/mozilla/embedly-proxy/tree/master)
+
 # API Interface
 
 Extract
