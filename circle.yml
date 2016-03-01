@@ -8,4 +8,4 @@ dependencies:
 
 test:
   override:
-    - docker run -t embedly sh -c "pip install coverage flake8 && flake8 . && coverage run tests.py && coverage report -m --fail-under=100"
+    - docker run --user root -t embedly sh -c "pip install coverage flake8 && flake8 . && coverage run tests.py && coverage report -m --fail-under=100"
