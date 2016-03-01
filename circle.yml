@@ -2,10 +2,6 @@ machine:
   services:
     - docker
 
-dependencies:
-  override:
-    - docker build -t embedly embedly/ 
-
 test:
   override:
-    - docker run --user root -t embedly sh -c "pip install coverage flake8 && flake8 . && nosetests embedly/ --with-coverage --cover-package=embedly --cover-min-percentage=100"
+    - make test
