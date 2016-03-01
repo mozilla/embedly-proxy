@@ -7,50 +7,43 @@ import requests
 import mock
 
 from embedly.api import views
+from embedly.app import create_app
 
 
 class FlaskTest(unittest.TestCase):
 
     def setUp(self):
-        self.app = views.app
+        self.app = create_app()
         self.app.config['DEBUG'] = True
         self.app.config['TESTING'] = True
+
+        self.app.redis_client = mock.Mock()
+        self.app.redis_client.get.return_value = None
+        self.app.redis_client.set.return_value = None
 
         self.client = self.app.test_client()
 
 
-class MockRedisTest(object):
-
-    def setUp(self):
-        super(MockRedisTest, self).setUp()
-
-        mock_redis_patcher = mock.patch('embedly.api.views.redis_client')
-        self.mock_redis = mock_redis_patcher.start()
-        self.mock_redis.get.return_value = None
-        self.mock_redis.set.return_value = None
-        self.addCleanup(mock_redis_patcher.stop)
-
-
-class TestHeartbeat(MockRedisTest, FlaskTest):
+class TestHeartbeat(FlaskTest):
 
     def test_heartbeat_returns_200_when_redis_available(self):
         response = self.client.get('/__heartbeat__')
         self.assertEqual(response.status_code, 200)
 
     def test_heartbeat_returns_500_when_redis_unavailable(self):
-        self.mock_redis.ping.side_effect = redis.ConnectionError()
+        self.app.redis_client.ping.side_effect = redis.ConnectionError()
         response = self.client.get('/__heartbeat__')
         self.assertEqual(response.status_code, 500)
 
 
-class TestLBHeartbeat(MockRedisTest, FlaskTest):
+class TestLBHeartbeat(FlaskTest):
 
     def test_heartbeat_returns_200_when_redis_available(self):
         response = self.client.get('/__lbheartbeat__')
         self.assertEqual(response.status_code, 200)
 
     def test_heartbeat_returns_200_when_redis_unavailable(self):
-        self.mock_redis.ping.side_effect = redis.ConnectionError()
+        self.app.redis_client.ping.side_effect = redis.ConnectionError()
         response = self.client.get('/__lbheartbeat__')
         self.assertEqual(response.status_code, 200)
 
@@ -70,7 +63,7 @@ class TestVersion(FlaskTest):
         self.assertEqual(response.data, self.app.config['VERSION_INFO'])
 
 
-class TestExtract(MockRedisTest, FlaskTest):
+class TestExtract(FlaskTest):
 
     def _get_url_data(self, url):
         return {
@@ -128,12 +121,14 @@ class TestExtract(MockRedisTest, FlaskTest):
 
         self.assertEqual(response.status_code, 200)
 
-        self.assertEqual(self.mock_redis.get.call_count, 2)
+        self.assertEqual(self.app.redis_client.get.call_count, 2)
         self.assertEqual(self.mock_requests_get.call_count, 1)
-        self.assertEqual(
-            self.mock_requests_get.call_args[0][0],
-            views.build_embedly_url(self.sample_urls),
-        )
+
+        with self.app.app_context():
+            self.assertEqual(
+                self.mock_requests_get.call_args[0][0],
+                views.build_embedly_url(self.sample_urls),
+            )
 
         response_data = json.loads(response.data)
         self.assertEqual(response_data, self.expected_response)
@@ -157,7 +152,7 @@ class TestExtract(MockRedisTest, FlaskTest):
 
         self.assertEqual(response.status_code, 200)
 
-        self.assertEqual(self.mock_redis.get.call_count, 2)
+        self.assertEqual(self.app.redis_client.get.call_count, 2)
         self.assertEqual(self.mock_requests_get.call_count, 1)
 
         response_data = json.loads(response.data)
@@ -176,7 +171,7 @@ class TestExtract(MockRedisTest, FlaskTest):
 
         self.assertEqual(response.status_code, 200)
 
-        self.assertEqual(self.mock_redis.get.call_count, 2)
+        self.assertEqual(self.app.redis_client.get.call_count, 2)
         self.assertEqual(self.mock_requests_get.call_count, 1)
 
         response_data = json.loads(response.data)
@@ -192,7 +187,7 @@ class TestExtract(MockRedisTest, FlaskTest):
             return mocked_lookup
 
         cached_url = self.sample_urls[0]
-        self.mock_redis.get.side_effect = get_mocked_cache_lookup(
+        self.app.redis_client.get.side_effect = get_mocked_cache_lookup(
             cached_url, self._get_url_data(cached_url))
 
         uncached_urls = self.sample_urls[1:]
@@ -206,12 +201,14 @@ class TestExtract(MockRedisTest, FlaskTest):
 
         self.assertEqual(response.status_code, 200)
 
-        self.assertEqual(self.mock_redis.get.call_count, 2)
+        self.assertEqual(self.app.redis_client.get.call_count, 2)
         self.assertEqual(self.mock_requests_get.call_count, 1)
-        self.assertEqual(
-            self.mock_requests_get.call_args[0][0],
-            views.build_embedly_url(uncached_urls),
-        )
+
+        with self.app.app_context():
+            self.assertEqual(
+                self.mock_requests_get.call_args[0][0],
+                views.build_embedly_url(uncached_urls),
+            )
 
         response_data = json.loads(response.data)
 
@@ -222,13 +219,13 @@ class TestExtract(MockRedisTest, FlaskTest):
         def mocked_lookup(url):
             return json.dumps(self._get_url_data(url))
 
-        self.mock_redis.get.side_effect = mocked_lookup
+        self.app.redis_client.get.side_effect = mocked_lookup
 
         response = self.client.get(self._build_query_url(self.sample_urls))
 
         self.assertEqual(response.status_code, 200)
 
-        self.assertEqual(self.mock_redis.get.call_count, 2)
+        self.assertEqual(self.app.redis_client.get.call_count, 2)
         self.assertEqual(self.mock_requests_get.call_count, 0)
 
         response_data = json.loads(response.data)
@@ -244,7 +241,7 @@ class TestExtract(MockRedisTest, FlaskTest):
         def mocked_lookup(url):
             return json.dumps(self._get_url_data(url))
 
-        self.mock_redis.get.side_effect = mocked_lookup
+        self.app.redis_client.get.side_effect = mocked_lookup
 
         similar_urls = [
             'https://www.google.ca/?q=hello',
@@ -258,11 +255,17 @@ class TestExtract(MockRedisTest, FlaskTest):
 
         self.assertEqual(response.status_code, 200)
 
-        self.assertEqual(self.mock_redis.get.call_count, 5)
+        self.assertEqual(self.app.redis_client.get.call_count, 5)
         self.assertEqual(self.mock_requests_get.call_count, 0)
-        self.assertEqual(len(self.mock_redis.get.call_args[0]), 1)
+        self.assertEqual(len(self.app.redis_client.get.call_args[0]), 1)
+
+        called_urls = set([
+            call[0][0] for call in
+            self.app.redis_client.get.call_args_list
+        ])
+
         self.assertEqual(
-            set([call[0][0] for call in self.mock_redis.get.call_args_list]),
+            called_urls,
             set(['www.google.ca/', 'www.google.ca/some/path/']),
         )
 
