@@ -1,14 +1,33 @@
+start_redis:
+	sudo /etc/init.d/redis-server start
+
+stop_redis:
+	sudo /etc/init.d/redis-server stop
+
+start_nginx:
+	sudo /etc/init.d/nginx start
+
+stop_nginx:
+	sudo /etc/init.d/nginx stop
+
+start_local: start_redis start_nginx
+
+stop_local: stop_redis stop_nginx
+
 build:
 	docker build -t embedly embedly/
 
 test: build
 	docker run --user root -t embedly sh -c "pip install coverage flake8 && flake8 . && nosetests embedly/ --with-coverage --cover-package=embedly --cover-min-percentage=100"
 
+dev: build start_local
+	docker run --net=host --env-file=.env -e REDIS_URL=localhost -i -t embedly python embedly/dev_server.py
+
+gunicorn: build start_local
+	docker run --net=host --env-file=.env -e REDIS_URL=localhost -i -t embedly gunicorn -c gunicorn.conf --pythonpath embedly wsgi 
+
 compose_build:
 	docker-compose build
 
-up: compose_build
+up: compose_build stop_local
 	docker-compose up
-
-gunicorn:
-	gunicorn -c embedly/gunicorn.conf --pythonpath embedly/embedly api.views:app

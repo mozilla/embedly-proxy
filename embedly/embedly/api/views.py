@@ -1,13 +1,10 @@
 import json
-import os
 import urllib
 import urlparse
 
 import redis
 import requests
 from flask import Blueprint, current_app, request, Response
-
-from embedly.app import create_app
 
 
 def get_cache_key(url):
@@ -124,15 +121,3 @@ def extract_urls():
         status=200,
         mimetype='application/json',
     )
-
-
-if __name__ == '__main__':  # pragma: no cover
-    app = create_app()
-    port = 7001
-    try:
-        # Receive port through an environment variable
-        port = int(os.environ['PORT'])
-    except (KeyError, ValueError):
-        pass
-
-    app.run(host='0.0.0.0', port=port)
