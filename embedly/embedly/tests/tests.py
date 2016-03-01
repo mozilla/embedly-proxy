@@ -6,13 +6,13 @@ import redis
 import requests
 import mock
 
-import embedly
+from embedly.api import views
 
 
 class FlaskTest(unittest.TestCase):
 
     def setUp(self):
-        self.app = embedly.app
+        self.app = views.app
         self.app.config['DEBUG'] = True
         self.app.config['TESTING'] = True
 
@@ -24,7 +24,7 @@ class MockRedisTest(object):
     def setUp(self):
         super(MockRedisTest, self).setUp()
 
-        mock_redis_patcher = mock.patch('embedly.redis_client')
+        mock_redis_patcher = mock.patch('embedly.api.views.redis_client')
         self.mock_redis = mock_redis_patcher.start()
         self.mock_redis.get.return_value = None
         self.mock_redis.set.return_value = None
@@ -88,7 +88,8 @@ class TestExtract(MockRedisTest, FlaskTest):
     def setUp(self):
         super(TestExtract, self).setUp()
 
-        mock_requests_get_patcher = mock.patch('embedly.requests.get')
+        mock_requests_get_patcher = mock.patch(
+            'embedly.api.views.requests.get')
         self.mock_requests_get = mock_requests_get_patcher.start()
         self.addCleanup(mock_requests_get_patcher.stop)
 
@@ -131,7 +132,7 @@ class TestExtract(MockRedisTest, FlaskTest):
         self.assertEqual(self.mock_requests_get.call_count, 1)
         self.assertEqual(
             self.mock_requests_get.call_args[0][0],
-            embedly.build_embedly_url(self.sample_urls),
+            views.build_embedly_url(self.sample_urls),
         )
 
         response_data = json.loads(response.data)
@@ -185,7 +186,7 @@ class TestExtract(MockRedisTest, FlaskTest):
 
         def get_mocked_cache_lookup(url, cached_data):
             def mocked_lookup(key):
-                if key == embedly.get_cache_key(url):
+                if key == views.get_cache_key(url):
                     return json.dumps(cached_data)
 
             return mocked_lookup
@@ -209,7 +210,7 @@ class TestExtract(MockRedisTest, FlaskTest):
         self.assertEqual(self.mock_requests_get.call_count, 1)
         self.assertEqual(
             self.mock_requests_get.call_args[0][0],
-            embedly.build_embedly_url(uncached_urls),
+            views.build_embedly_url(uncached_urls),
         )
 
         response_data = json.loads(response.data)
@@ -233,7 +234,7 @@ class TestExtract(MockRedisTest, FlaskTest):
         response_data = json.loads(response.data)
 
         expected_response = {
-            url: self._get_url_data(embedly.get_cache_key(url))
+            url: self._get_url_data(views.get_cache_key(url))
             for url in self.sample_urls
         }
         self.assertEqual(response_data, expected_response)
@@ -268,7 +269,7 @@ class TestExtract(MockRedisTest, FlaskTest):
         response_data = json.loads(response.data)
 
         expected_response = {
-            url: self._get_url_data(embedly.get_cache_key(url))
+            url: self._get_url_data(views.get_cache_key(url))
             for url in similar_urls
         }
 
