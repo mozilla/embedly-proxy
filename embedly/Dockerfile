@@ -13,4 +13,4 @@ COPY . /app
 
 USER app
 
-CMD ["/usr/local/bin/gunicorn", "-c", "gunicorn.conf", "--pythonpath", "embedly", "api.views:app"]
+CMD ["/usr/local/bin/gunicorn", "-c", "gunicorn.conf", "embedly:app"]

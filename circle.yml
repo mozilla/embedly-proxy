@@ -2,6 +2,10 @@ machine:
   services:
     - docker
 
+dependencies:
+  override:
+    - docker build -t embedly embedly/ 
+
 test:
   override:
-    - make test
+    - docker run --user root -t embedly sh -c "pip install coverage flake8 && flake8 . && coverage run tests.py && coverage report -m --fail-under=100"
