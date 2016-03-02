@@ -4,7 +4,7 @@ import redis
 from flask import Flask
 from flask.ext.cors import CORS
 
-import embedly.api.views
+import api.views
 
 
 def create_app():
@@ -22,7 +22,7 @@ def create_app():
         with open('./version.json') as version_file:
             app.config['VERSION_INFO'] = version_file.read()
 
-    app.register_blueprint(embedly.api.views.blueprint)
+    app.register_blueprint(api.views.blueprint)
     app.redis_client = redis.StrictRedis(
         host=app.config['REDIS_URL'], port=6379, db=0)
 
