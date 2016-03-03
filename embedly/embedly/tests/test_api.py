@@ -2,7 +2,7 @@ import json
 import urllib
 
 import redis
-import mock
+import requests
 
 from embedly.app import create_app
 from embedly.tests.base import MockTest
@@ -96,12 +96,20 @@ class TestExtractV1(ExtractTest):
         response_data = json.loads(response.data)
         self.assertEqual(response_data, {})
 
+    def test_urlextractorexception_returns_200(self):
+        self.mock_requests_get.side_effect = requests.RequestException()
+
+        response = self.client.get(self._build_query_url(self.sample_urls))
+        self.assertEqual(response.status_code, 200)
+
+        response_data = json.loads(response.data)
+        self.assertEqual(response_data, {})
+
     def test_extract_returns_embedly_data(self):
         embedly_data = self.get_mock_urls_data(self.sample_urls)
 
-        mock_response = mock.Mock()
-        mock_response.content = json.dumps(embedly_data)
-        self.mock_requests_get.return_value = mock_response
+        self.mock_requests_get.return_value = self.get_mock_response(
+            content=json.dumps(embedly_data))
 
         response = self.client.get(self._build_query_url(self.sample_urls))
 
@@ -113,12 +121,29 @@ class TestExtractV1(ExtractTest):
 
 class TestExtractV2(ExtractTest):
 
-    def test_empty_query_returns_200(self):
-        response = self.client.post('/v2/extract')
-        self.assertEqual(response.status_code, 200)
+    def test_request_method_must_be_post(self):
+        response = self.client.get('/v2/extract')
+        self.assertEqual(response.status_code, 405)
 
-        response_data = json.loads(response.data)
-        self.assertEqual(response_data, {})
+    def test_content_type_must_be_application_json(self):
+        response = self.client.post('/v2/extract')
+        self.assertEqual(response.status_code, 400)
+
+    def test_post_body_must_be_valid_json(self):
+        response = self.client.post(
+            '/v2/extract',
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_valid_json_post_body_must_include_urls(self):
+        response = self.client.post(
+            '/v2/extract',
+            data=json.dumps({}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
 
     def test_empty_urls_param_returns_200(self):
         response = self.client.post(
@@ -130,14 +155,27 @@ class TestExtractV2(ExtractTest):
         self.assertEqual(response.status_code, 200)
 
         response_data = json.loads(response.data)
-        self.assertEqual(response_data, {})
+        self.assertEqual(response_data, {
+            'urls': {},
+            'error': '',
+        })
+
+    def test_urlextractorexception_returns_error(self):
+        self.mock_requests_get.side_effect = requests.RequestException()
+
+        response = self.client.post(
+            '/v2/extract',
+            data=json.dumps({'urls': self.sample_urls}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 500)
 
     def test_extract_returns_embedly_data(self):
         embedly_data = self.get_mock_urls_data(self.sample_urls)
 
-        mock_response = mock.Mock()
-        mock_response.content = json.dumps(embedly_data)
-        self.mock_requests_get.return_value = mock_response
+        self.mock_requests_get.return_value = self.get_mock_response(
+            content=json.dumps(embedly_data))
 
         response = self.client.post(
             '/v2/extract',
@@ -148,4 +186,7 @@ class TestExtractV2(ExtractTest):
         self.assertEqual(response.status_code, 200)
 
         response_data = json.loads(response.data)
-        self.assertEqual(response_data, self.expected_response)
+        self.assertEqual(response_data, {
+            'urls': self.expected_response,
+            'error': '',
+        })

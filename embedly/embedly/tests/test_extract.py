@@ -1,9 +1,8 @@
 import json
 
-import mock
 import requests
 
-from embedly.extract import URLExtractor
+from embedly.extract import URLExtractor, URLExtractorException
 from embedly.tests.base import MockTest
 
 
@@ -27,9 +26,8 @@ class TestExtract(MockTest):
     def test_multiple_urls_queried_without_caching(self):
         embedly_data = self.get_mock_urls_data(self.sample_urls)
 
-        mock_response = mock.Mock()
-        mock_response.content = json.dumps(embedly_data)
-        self.mock_requests_get.return_value = mock_response
+        self.mock_requests_get.return_value = self.get_mock_response(
+            content=json.dumps(embedly_data))
 
         extracted_urls = self.extractor.extract_urls(self.sample_urls)
 
@@ -39,34 +37,41 @@ class TestExtract(MockTest):
 
         self.assertEqual(extracted_urls, self.expected_response)
 
-    def test_request_error_returns_empty_dict(self):
+    def test_request_error_raises_exception(self):
         self.mock_requests_get.side_effect = requests.RequestException()
 
-        extracted_urls = self.extractor.extract_urls(self.sample_urls)
+        with self.assertRaises(URLExtractorException):
+            self.extractor.extract_urls(self.sample_urls)
 
-        self.assertEqual(extracted_urls, {})
+    def test_invalid_json_from_embedly_raises_exception(self):
+        self.mock_requests_get.return_value = self.get_mock_response(
+            content='\invalid json')
 
-    def test_invalid_json_from_embedly_returns_empty_dict(self):
-        mock_response = mock.Mock()
-        mock_response.content = '\invalid json'
-        self.mock_requests_get.return_value = mock_response
+        with self.assertRaises(URLExtractorException):
+            self.extractor.extract_urls(self.sample_urls)
 
-        extracted_urls = self.extractor.extract_urls(self.sample_urls)
+    def test_error_from_embedly_raises_exception(self):
+        self.mock_requests_get.return_value = self.get_mock_response(
+            status=400,
+            content=json.dumps({
+                'type': 'error',
+                'error_message': 'error',
+                'error_code': 400,
+            })
+        )
 
-        self.assertEqual(extracted_urls, {})
+        with self.assertRaises(URLExtractorException):
+            self.extractor.extract_urls(self.sample_urls)
 
-    def test_error_from_embedly_returns_empty_dict(self):
-        mock_response = mock.Mock()
-        mock_response.content = json.dumps({
-            'type': 'error',
-            'error_message': 'error',
-            'error_code': 400,
-        })
-        self.mock_requests_get.return_value = mock_response
+    def test_invalid_json_in_cache_raises_exception(self):
 
-        extracted_urls = self.extractor.extract_urls(self.sample_urls)
+        def mocked_lookup(key):
+            return '\invalid json'
 
-        self.assertEqual(extracted_urls, {})
+        self.mock_redis.get.side_effect = mocked_lookup
+
+        with self.assertRaises(URLExtractorException):
+            self.extractor.extract_urls(self.sample_urls)
 
     def test_multiple_urls_queried_with_partial_cache_hit(self):
 
@@ -84,9 +89,8 @@ class TestExtract(MockTest):
         uncached_urls = self.sample_urls[1:]
         embedly_data = self.get_mock_urls_data(uncached_urls)
 
-        mock_response = mock.Mock()
-        mock_response.content = json.dumps(embedly_data)
-        self.mock_requests_get.return_value = mock_response
+        self.mock_requests_get.return_value = self.get_mock_response(
+            content=json.dumps(embedly_data))
 
         extracted_urls = self.extractor.extract_urls(self.sample_urls)
 

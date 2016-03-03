@@ -5,6 +5,10 @@ import urlparse
 import requests
 
 
+class URLExtractorException(Exception):
+    pass
+
+
 class URLExtractor(object):
 
     def __init__(self, embedly_url, embedly_key, redis_client, redis_timeout):
@@ -23,7 +27,12 @@ class URLExtractor(object):
         cached_data = self.redis_client.get(cache_key)
 
         if cached_data is not None:
-            return json.loads(cached_data)
+            try:
+                return json.loads(cached_data)
+            except ValueError:
+                raise URLExtractorException(
+                    ('Unable to load JSON data '
+                     'from cache for key: {key}').format(key=cache_key))
 
     def _set_cached_url(self, url, data):
         cache_key = self._get_cache_key(url)
@@ -48,16 +57,25 @@ class URLExtractor(object):
 
         try:
             response = requests.get(request_url)
-        except requests.RequestException:
-            response = None
+        except requests.RequestException, e:
+            raise URLExtractorException(
+                ('Unable to communicate '
+                 'with embedly: {error}').format(error=e))
+
+        if response.status_code != 200:
+            raise URLExtractorException(
+                ('Error returned from '
+                 'embedly: {error}').format(error=response.content))
 
         embedly_data = []
 
         if response is not None:
             try:
                 embedly_data = json.loads(response.content)
-            except (TypeError, ValueError):
-                pass
+            except (TypeError, ValueError), e:
+                raise URLExtractorException(
+                    ('Unable to parse the JSON '
+                     'response from embedly: {error}').format(error=e))
 
         parsed_data = {}
 
