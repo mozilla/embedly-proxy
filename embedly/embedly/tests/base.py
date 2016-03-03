@@ -1,10 +1,9 @@
-import urllib
 from unittest import TestCase
 
 import mock
 
 
-class ExtractTest(TestCase):
+class MockTest(TestCase):
 
     def setUp(self):
         mock_requests_get_patcher = mock.patch(
@@ -16,15 +15,10 @@ class ExtractTest(TestCase):
         self.mock_redis.get.return_value = None
         self.mock_redis.set.return_value = None
 
-        super(ExtractTest, self).setUp()
+        super(MockTest, self).setUp()
 
-    def _get_url_data(self, url):
+    def get_mock_url_data(self, url):
         return {'original_url': url}
 
-    def _get_urls_data(self, urls):
-        return [self._get_url_data(url) for url in urls]
-
-    def _build_query_url(self, urls):
-        quoted_urls = [urllib.quote_plus(url) for url in urls]
-        query_params = '&'.join(['urls={}'.format(url) for url in quoted_urls])
-        return '/extract?{params}'.format(params=query_params)
+    def get_mock_urls_data(self, urls):
+        return [self.get_mock_url_data(url) for url in urls]

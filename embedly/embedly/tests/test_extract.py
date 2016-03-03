@@ -4,10 +4,10 @@ import mock
 import requests
 
 from embedly.extract import URLExtractor
-from embedly.tests.base import ExtractTest
+from embedly.tests.base import MockTest
 
 
-class TestExtract(ExtractTest):
+class TestExtract(MockTest):
 
     def setUp(self):
         super(TestExtract, self).setUp()
@@ -20,12 +20,12 @@ class TestExtract(ExtractTest):
         ]
 
         self.expected_response = {
-            url: self._get_url_data(url)
+            url: self.get_mock_url_data(url)
             for url in self.sample_urls
         }
 
     def test_multiple_urls_queried_without_caching(self):
-        embedly_data = self._get_urls_data(self.sample_urls)
+        embedly_data = self.get_mock_urls_data(self.sample_urls)
 
         mock_response = mock.Mock()
         mock_response.content = json.dumps(embedly_data)
@@ -79,10 +79,10 @@ class TestExtract(ExtractTest):
 
         cached_url = self.sample_urls[0]
         self.mock_redis.get.side_effect = get_mocked_cache_lookup(
-            cached_url, self._get_url_data(cached_url))
+            cached_url, self.get_mock_url_data(cached_url))
 
         uncached_urls = self.sample_urls[1:]
-        embedly_data = self._get_urls_data(uncached_urls)
+        embedly_data = self.get_mock_urls_data(uncached_urls)
 
         mock_response = mock.Mock()
         mock_response.content = json.dumps(embedly_data)
@@ -103,7 +103,7 @@ class TestExtract(ExtractTest):
     def test_multiple_urls_queried_with_total_cache_hit(self):
 
         def mocked_lookup(url):
-            return json.dumps(self._get_url_data(url))
+            return json.dumps(self.get_mock_url_data(url))
 
         self.mock_redis.get.side_effect = mocked_lookup
 
@@ -113,7 +113,7 @@ class TestExtract(ExtractTest):
         self.assertEqual(self.mock_requests_get.call_count, 0)
 
         expected_response = {
-            url: self._get_url_data(self.extractor._get_cache_key(url))
+            url: self.get_mock_url_data(self.extractor._get_cache_key(url))
             for url in self.sample_urls
         }
 
@@ -122,7 +122,7 @@ class TestExtract(ExtractTest):
     def test_protocol_and_query_are_removed_from_cache_key(self):
 
         def mocked_lookup(url):
-            return json.dumps(self._get_url_data(url))
+            return json.dumps(self.get_mock_url_data(url))
 
         self.mock_redis.get.side_effect = mocked_lookup
 
@@ -151,7 +151,7 @@ class TestExtract(ExtractTest):
         )
 
         expected_response = {
-            url: self._get_url_data(self.extractor._get_cache_key(url))
+            url: self.get_mock_url_data(self.extractor._get_cache_key(url))
             for url in similar_urls
         }
 

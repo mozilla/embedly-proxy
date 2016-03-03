@@ -1,13 +1,14 @@
 import json
+import urllib
 
 import redis
 import mock
 
 from embedly.app import create_app
-from embedly.tests.base import ExtractTest
+from embedly.tests.base import MockTest
 
 
-class APITest(ExtractTest):
+class APITest(MockTest):
 
     def setUp(self):
         super(APITest, self).setUp()
@@ -58,10 +59,10 @@ class TestVersion(APITest):
         self.assertEqual(response.data, self.app.config['VERSION_INFO'])
 
 
-class TestExtract(APITest):
+class ExtractTest(APITest):
 
     def setUp(self):
-        super(TestExtract, self).setUp()
+        super(ExtractTest, self).setUp()
 
         self.sample_urls = [
             'http://example.com/?this=that&things=stuff',
@@ -69,9 +70,17 @@ class TestExtract(APITest):
         ]
 
         self.expected_response = {
-            url: self._get_url_data(url)
+            url: self.get_mock_url_data(url)
             for url in self.sample_urls
         }
+
+
+class TestExtractV1(ExtractTest):
+
+    def _build_query_url(self, urls):
+        quoted_urls = [urllib.quote_plus(url) for url in urls]
+        query_params = '&'.join(['urls={}'.format(url) for url in quoted_urls])
+        return '/extract?{params}'.format(params=query_params)
 
     def test_empty_query_returns_200(self):
         response = self.client.get('/extract')
@@ -88,13 +97,53 @@ class TestExtract(APITest):
         self.assertEqual(response_data, {})
 
     def test_extract_returns_embedly_data(self):
-        embedly_data = self._get_urls_data(self.sample_urls)
+        embedly_data = self.get_mock_urls_data(self.sample_urls)
 
         mock_response = mock.Mock()
         mock_response.content = json.dumps(embedly_data)
         self.mock_requests_get.return_value = mock_response
 
         response = self.client.get(self._build_query_url(self.sample_urls))
+
+        self.assertEqual(response.status_code, 200)
+
+        response_data = json.loads(response.data)
+        self.assertEqual(response_data, self.expected_response)
+
+
+class TestExtractV2(ExtractTest):
+
+    def test_empty_query_returns_200(self):
+        response = self.client.post('/v2/extract')
+        self.assertEqual(response.status_code, 200)
+
+        response_data = json.loads(response.data)
+        self.assertEqual(response_data, {})
+
+    def test_empty_urls_param_returns_200(self):
+        response = self.client.post(
+            '/v2/extract',
+            data=json.dumps({'urls': []}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        response_data = json.loads(response.data)
+        self.assertEqual(response_data, {})
+
+    def test_extract_returns_embedly_data(self):
+        embedly_data = self.get_mock_urls_data(self.sample_urls)
+
+        mock_response = mock.Mock()
+        mock_response.content = json.dumps(embedly_data)
+        self.mock_requests_get.return_value = mock_response
+
+        response = self.client.post(
+            '/v2/extract',
+            data=json.dumps({'urls': self.sample_urls}),
+            content_type='application/json',
+        )
 
         self.assertEqual(response.status_code, 200)
 

@@ -34,10 +34,25 @@ def version():
     )
 
 
-@blueprint.route('/extract')
-def extract_urls():
+@blueprint.route('/extract', methods=['GET'])
+def extract_urls_v1():
     urls = request.args.getlist('urls')
     url_data = current_app.extractor.extract_urls(urls)
+    return Response(
+        json.dumps(url_data),
+        status=200,
+        mimetype='application/json',
+    )
+
+
+@blueprint.route('/v2/extract', methods=['POST'])
+def extract_urls_v2():
+    url_data = {}
+
+    if request.json is not None:
+        urls = request.json.get('urls', [])
+        url_data = current_app.extractor.extract_urls(urls)
+
     return Response(
         json.dumps(url_data),
         status=200,
