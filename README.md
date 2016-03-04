@@ -93,7 +93,8 @@ Extract V2
   * **urls**
 
     The POST body must be a JSON encoded dictionary with one key: urls
-    which contains a list of URLs to be queried.
+    which contains a list of URLs to be queried.  A maximum of 25 URLs
+    may be submitted in one request.
 
     ex:
 

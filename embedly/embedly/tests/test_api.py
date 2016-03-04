@@ -171,6 +171,17 @@ class TestExtractV2(ExtractTest):
 
         self.assertEqual(response.status_code, 500)
 
+    def test_rejects_calls_with_too_many_urls(self):
+        self.app.config['MAXIMUM_POST_URLS'] = 1
+
+        response = self.client.post(
+            '/v2/extract',
+            data=json.dumps({'urls': self.sample_urls}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+
     def test_extract_returns_embedly_data(self):
         embedly_data = self.get_mock_urls_data(self.sample_urls)
 
