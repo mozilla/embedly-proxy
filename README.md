@@ -118,21 +118,39 @@ Extract V2
   JSON encoding
 
       {
-        "<url1>": <embedly metadata>,
-        "<urln>": <embedly metadata>,
+        urls: {
+          "<url1>": <embedly metadata>,
+          "<urln>": <embedly metadata>,
+        },
+        error: ""
       }
 
-      ex:
+      ex success:
 
       {
-        "https://www.mozilla.org": {
-          <embedly metadata>
-        }
+        urls: {
+          "https://www.mozilla.org": {
+            <embedly metadata>
+        },
+        error: ""
+      }
+      
+      ex failure:
+
+      {
+        urls: {},
+        error: "The Content-Type header must be set to application/json"
       }
 
 * **Error Responses:**
 
-  None
+  * **Code:** 400
+
+  The server received a malformed request.  
+
+  * **Code:** 500
+
+  The server was unable to satisfy the request.
 
 * **Sample Call:**
 
