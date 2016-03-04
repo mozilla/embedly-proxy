@@ -78,6 +78,12 @@ def extract_urls_v2():
         fail(400,
              'POST content must be a JSON encoded dictionary {urls: [...]}')
 
+    if len(urls) > current_app.config['MAXIMUM_POST_URLS']:
+        fail(400, (
+            'A single request must contain '
+            'at most {max} URLs in the POST body.'
+        ).format(max=current_app.config['MAXIMUM_POST_URLS']))
+
     try:
         response_data['urls'] = current_app.extractor.extract_urls(urls)
     except URLExtractorException, e:

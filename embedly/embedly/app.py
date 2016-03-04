@@ -12,6 +12,9 @@ def create_app(redis_client=None):
     app = Flask(__name__)
     CORS(app)
 
+    # Maximum number of URLs to receive in an API call
+    app.config['MAXIMUM_POST_URLS'] = 25
+
     embedly_url = 'https://api.embedly.com/1/extract'
     embedly_key = os.environ.get('EMBEDLY_KEY', None)
 
