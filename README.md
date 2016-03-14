@@ -14,7 +14,7 @@ Extract V1
 
 * **URL**
 
-  http://embedly-proxy.dev.mozaws.net/extract
+  https://embedly-proxy.dev.mozaws.net/extract
 
 * **Method:**
 
@@ -64,7 +64,7 @@ Extract V1
 * **Sample Call:**
 
         $.ajax({
-          url: "http://embedly-proxy.dev.mozaws.net/extract?urls=mozilla.org&urls=www.mozilla.com",
+          url: "https://embedly-proxy.dev.mozaws.net/extract?urls=mozilla.org&urls=www.mozilla.com",
           dataType: "json",
           type : "GET",
           success : function(r, data) {
@@ -78,7 +78,7 @@ Extract V2
 
 * **URL**
 
-  http://embedly-proxy.dev.mozaws.net/v2/extract
+  https://embedly-proxy.dev.mozaws.net/v2/extract
 
 * **Method:**
 
@@ -156,7 +156,7 @@ Extract V2
 * **Sample Call:**
 
         $.ajax({
-          url: "http://embedly-proxy.dev.mozaws.net/v2/extract,
+          url: "https://embedly-proxy.dev.mozaws.net/v2/extract,
           type : "POST",
           dataType: "json",
           contentType : "application/json",
