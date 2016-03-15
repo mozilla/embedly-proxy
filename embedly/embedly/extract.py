@@ -1,6 +1,5 @@
 import json
 import urllib
-import urlparse
 
 import requests
 
@@ -18,9 +17,7 @@ class URLExtractor(object):
         self.redis_timeout = redis_timeout
 
     def _get_cache_key(self, url):
-        split_url = urlparse.urlsplit(url)
-        return '{base}{path}'.format(
-            base=split_url.netloc, path=split_url.path)
+        return url
 
     def _get_cached_url(self, url):
         cache_key = self._get_cache_key(url)
