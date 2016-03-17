@@ -3,6 +3,8 @@ import urllib
 
 import requests
 
+from schema import EmbedlyURLSchema
+
 
 class URLExtractorException(Exception):
     pass
@@ -15,6 +17,7 @@ class URLExtractor(object):
         self.embedly_key = embedly_key
         self.redis_client = redis_client
         self.redis_timeout = redis_timeout
+        self.schema = EmbedlyURLSchema()
 
     def _get_cache_key(self, url):
         return url
@@ -98,10 +101,15 @@ class URLExtractor(object):
 
         if uncached_urls:
             embedly_url_data = self._get_urls_from_embedly(uncached_urls)
+            validated_url_data = {}
 
             for embedly_url, embedly_data in embedly_url_data.items():
-                self._set_cached_url(embedly_url, embedly_data)
+                validated_data = self.schema.load(embedly_data)
 
-            url_data.update(embedly_url_data)
+                if not validated_data.errors:
+                    self._set_cached_url(embedly_url, validated_data.data)
+                    validated_url_data[embedly_url] = validated_data.data
+
+            url_data.update(validated_url_data)
 
         return url_data

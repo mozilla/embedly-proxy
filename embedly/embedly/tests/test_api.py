@@ -4,23 +4,11 @@ import urllib
 import redis
 import requests
 
-from embedly.app import create_app
-from embedly.tests.base import MockTest
+from embedly.tests.base import AppTest
+from embedly.tests.test_extract import ExtractorTest
 
 
-class APITest(MockTest):
-
-    def setUp(self):
-        super(APITest, self).setUp()
-
-        self.app = create_app(redis_client=self.mock_redis)
-        self.app.config['DEBUG'] = True
-        self.app.config['TESTING'] = True
-
-        self.client = self.app.test_client()
-
-
-class TestHeartbeat(APITest):
+class TestHeartbeat(AppTest):
 
     def test_heartbeat_returns_200_when_redis_available(self):
         response = self.client.get('/__heartbeat__')
@@ -32,7 +20,7 @@ class TestHeartbeat(APITest):
         self.assertEqual(response.status_code, 500)
 
 
-class TestLBHeartbeat(APITest):
+class TestLBHeartbeat(AppTest):
 
     def test_heartbeat_returns_200_when_redis_available(self):
         response = self.client.get('/__lbheartbeat__')
@@ -44,7 +32,7 @@ class TestLBHeartbeat(APITest):
         self.assertEqual(response.status_code, 200)
 
 
-class TestVersion(APITest):
+class TestVersion(AppTest):
 
     def test_version_returns_git_info(self):
         self.app.config['VERSION_INFO'] = json.dumps({
@@ -59,23 +47,7 @@ class TestVersion(APITest):
         self.assertEqual(response.data, self.app.config['VERSION_INFO'])
 
 
-class ExtractTest(APITest):
-
-    def setUp(self):
-        super(ExtractTest, self).setUp()
-
-        self.sample_urls = [
-            'http://example.com/?this=that&things=stuff',
-            'www.example.com/path/to/things/?these=those'
-        ]
-
-        self.expected_response = {
-            url: self.get_mock_url_data(url)
-            for url in self.sample_urls
-        }
-
-
-class TestExtractV1(ExtractTest):
+class TestExtractV1(ExtractorTest):
 
     def _build_query_url(self, urls):
         quoted_urls = [urllib.quote_plus(url) for url in urls]
@@ -119,7 +91,7 @@ class TestExtractV1(ExtractTest):
         self.assertEqual(response_data, self.expected_response)
 
 
-class TestExtractV2(ExtractTest):
+class TestExtractV2(ExtractorTest):
 
     def test_request_method_must_be_post(self):
         response = self.client.get('/v2/extract')
