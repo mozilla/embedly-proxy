@@ -15,10 +15,10 @@ start_local: start_redis start_nginx
 stop_local: stop_redis stop_nginx
 
 build:
-	docker build -t embedly embedly/
+	docker build -t app:build embedly/
 
 test: build
-	docker run --user root -t embedly sh -c "pip install coverage flake8 && flake8 . && nosetests embedly/ --with-coverage --cover-package=embedly --cover-min-percentage=100"
+	docker run --user root -t app:build sh -c "pip install coverage flake8 && flake8 . && nosetests embedly/ --with-coverage --cover-package=embedly --cover-min-percentage=100"
 
 dev: build start_local
 	docker run --net=host --env-file=.env -e REDIS_URL=localhost -i -t embedly python embedly/dev_server.py
