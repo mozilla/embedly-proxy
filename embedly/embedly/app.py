@@ -3,6 +3,7 @@ import os
 import redis
 from flask import Flask
 from flask.ext.cors import CORS
+from raven.contrib.flask import Sentry
 
 import api.views
 from extract import URLExtractor
@@ -36,5 +37,8 @@ def create_app(redis_client=None):
             app.config['VERSION_INFO'] = version_file.read()
 
     app.register_blueprint(api.views.blueprint)
+
+    app.config['SENTRY_DSN'] = os.environ.get('SENTRY_DSN', '')
+    app.sentry = Sentry(app)
 
     return app
