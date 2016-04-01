@@ -31,3 +31,6 @@ compose_build:
 
 up: compose_build stop_local
 	docker-compose up
+
+deploy:
+	sh scripts/deploy.sh $(TARGET)
