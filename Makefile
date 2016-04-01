@@ -26,7 +26,7 @@ dev: build start_local
 gunicorn: build start_local
 	docker run --net=host --env-file=.env -e REDIS_URL=localhost -i -t embedly gunicorn -c gunicorn.conf --pythonpath embedly wsgi 
 
-compose_build:
+compose_build: build
 	docker-compose build
 
 up: compose_build stop_local
