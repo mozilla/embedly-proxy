@@ -15,7 +15,7 @@ start_local: start_redis start_nginx
 stop_local: stop_redis stop_nginx
 
 build:
-	docker build -t app:build embedly/
+	sh scripts/build_embedly.sh
 
 test: build
 	docker run --user root -t app:build sh -c "pip install coverage flake8 && flake8 . && nosetests embedly/ --with-coverage --cover-package=embedly --cover-min-percentage=100"
