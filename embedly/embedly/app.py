@@ -41,4 +41,8 @@ def create_app(redis_client=None):
     app.config['SENTRY_DSN'] = os.environ.get('SENTRY_DSN', '')
     app.sentry = Sentry(app)
 
+    app.config['BLOCKED_DOMAINS'] = [
+        'embedly.com',
+    ]
+
     return app
