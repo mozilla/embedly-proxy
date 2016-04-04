@@ -21,10 +21,10 @@ test: build
 	docker run --user root -t app:build sh -c "pip install coverage flake8 && flake8 . && nosetests embedly/ --with-coverage --cover-package=embedly --cover-min-percentage=100"
 
 dev: build start_local
-	docker run --net=host --env-file=.env -e REDIS_URL=localhost -i -t embedly python embedly/dev_server.py
+	docker run --net=host --env-file=.env -e REDIS_URL=localhost -i -t app:build sh -c 'PYTHONPATH=. python embedly/dev_server.py'
 
 gunicorn: build start_local
-	docker run --net=host --env-file=.env -e REDIS_URL=localhost -i -t embedly gunicorn -c gunicorn.conf --pythonpath embedly wsgi 
+	docker run --net=host --env-file=.env -e REDIS_URL=localhost -i -t app:build gunicorn -c gunicorn.conf --pythonpath embedly wsgi 
 
 compose_build: build
 	docker-compose build
