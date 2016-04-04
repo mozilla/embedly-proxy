@@ -68,14 +68,15 @@ class TestExtractV1(ExtractorTest):
         response_data = json.loads(response.data)
         self.assertEqual(response_data, {})
 
-    def test_urlextractorexception_returns_200(self):
+    def test_urlextractorexception_returns_500(self):
         self.mock_requests_get.side_effect = requests.RequestException()
 
         response = self.client.get(self._build_query_url(self.sample_urls))
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 500)
 
         response_data = json.loads(response.data)
-        self.assertEqual(response_data, {})
+        self.assertEqual(response_data, {
+            'error': 'Unable to communicate with embedly: '})
 
     def test_extract_returns_embedly_data(self):
         embedly_data = self.get_mock_urls_data(self.sample_urls)
