@@ -83,6 +83,7 @@ class URLExtractor(object):
             parsed_data = {
                 url_data['original_url']: url_data
                 for url_data in embedly_data
+                if url_data['original_url'] in urls
             }
 
         return parsed_data

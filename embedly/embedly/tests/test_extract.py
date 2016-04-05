@@ -145,7 +145,10 @@ class TestExtract(ExtractorTest):
             content=json.dumps(embedly_data))
 
         with self.app.app_context():
-            extracted_urls = self.extractor.extract_urls(self.sample_urls)
+            extracted_urls = self.extractor.extract_urls([
+                valid_url,
+                invalid_url,
+            ])
 
         self.assertEqual(self.mock_redis.get.call_count, 2)
         self.assertEqual(self.mock_redis.set.call_count, 1)
@@ -157,3 +160,26 @@ class TestExtract(ExtractorTest):
         self.assertEqual(extracted_urls, {
             valid_url: valid_url_data,
         })
+
+    def test_embedly_modified_urls_are_omitted_from_response(self):
+        unmodified_url = 'http://www.example.com/unmodified'
+        original_modified_url = 'http://example.com/modified'
+        embedly_modified_url = 'http://example.com/modified?injected=content'
+
+        embedly_data = self.get_mock_urls_data([
+            unmodified_url,
+            embedly_modified_url,
+        ])
+
+        self.mock_requests_get.return_value = self.get_mock_response(
+            content=json.dumps(embedly_data))
+
+        with self.app.app_context():
+            extracted_urls = self.extractor.extract_urls([
+                unmodified_url,
+                original_modified_url,
+            ])
+
+        self.assertIn(unmodified_url, extracted_urls)
+        self.assertNotIn(original_modified_url, extracted_urls)
+        self.assertNotIn(embedly_modified_url, extracted_urls)
