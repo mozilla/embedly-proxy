@@ -37,27 +37,6 @@ def version():
     )
 
 
-@blueprint.route('/extract', methods=['GET'])
-def extract_urls_v1():
-    return_status = 200
-    url_data = {}
-    urls = [url for url in request.args.getlist('urls') if len(url) > 0]
-
-    if urls:
-        try:
-            url_data = current_app.extractor.extract_urls(urls)
-        except URLExtractorException, e:
-            # V1 API has no facility for reporting errors to the caller
-            return_status = 500
-            url_data = {'error': e.message}
-
-    return Response(
-        json.dumps(url_data),
-        status=return_status,
-        mimetype='application/json',
-    )
-
-
 @blueprint.route('/v2/extract', methods=['POST'])
 def extract_urls_v2():
     response_data = {
