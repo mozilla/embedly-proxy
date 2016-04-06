@@ -1,5 +1,4 @@
 import json
-import urllib
 
 import redis
 import requests
@@ -45,51 +44,6 @@ class TestVersion(AppTest):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data, self.app.config['VERSION_INFO'])
-
-
-class TestExtractV1(ExtractorTest):
-
-    def _build_query_url(self, urls):
-        quoted_urls = [urllib.quote_plus(url) for url in urls]
-        query_params = '&'.join(['urls={}'.format(url) for url in quoted_urls])
-        return '/extract?{params}'.format(params=query_params)
-
-    def test_empty_query_returns_200(self):
-        response = self.client.get('/extract')
-        self.assertEqual(response.status_code, 200)
-
-        response_data = json.loads(response.data)
-        self.assertEqual(response_data, {})
-
-    def test_empty_get_param_returns_200(self):
-        response = self.client.get('/extract?urls=')
-        self.assertEqual(response.status_code, 200)
-
-        response_data = json.loads(response.data)
-        self.assertEqual(response_data, {})
-
-    def test_urlextractorexception_returns_500(self):
-        self.mock_requests_get.side_effect = requests.RequestException()
-
-        response = self.client.get(self._build_query_url(self.sample_urls))
-        self.assertEqual(response.status_code, 500)
-
-        response_data = json.loads(response.data)
-        self.assertEqual(response_data, {
-            'error': 'Unable to communicate with embedly: '})
-
-    def test_extract_returns_embedly_data(self):
-        embedly_data = self.get_mock_urls_data(self.sample_urls)
-
-        self.mock_requests_get.return_value = self.get_mock_response(
-            content=json.dumps(embedly_data))
-
-        response = self.client.get(self._build_query_url(self.sample_urls))
-
-        self.assertEqual(response.status_code, 200)
-
-        response_data = json.loads(response.data)
-        self.assertEqual(response_data, self.expected_response)
 
 
 class TestExtractV2(ExtractorTest):

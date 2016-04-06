@@ -10,67 +10,8 @@ application API key.
 
 Extract V1
 ----
-  Extract metadata from a provided list of URLs.
 
-* **URL**
-
-  https://embedly-proxy.dev.mozaws.net/extract
-
-* **Method:**
-
-  `GET`
-
-*  **URL Params**
-
-
-  * **urls**
-
-    The URLs from which to extract metadata.
-    They should appear encoded, and may include protocol.
-
-    ex: `urls=https%3A%2F%2Fwww.mozilla.org%2F&urls=https%3A%2F%2Fdeveloper.mozilla.org%2Fen-US%2Fdocs%2FWeb%2FJavaScript`
-
-* **Data Params**
-
-  None
-
-* **Request Headers**
-
-  None
-
-* **Success Response:**
-
-  * **Code:** 200
-
-  JSON encoding
-
-      {
-        "<url1>": <embedly metadata>,
-        "<urln>": <embedly metadata>,
-      }
-
-      ex:
-
-      {
-        "https://www.mozilla.org": {
-          <embedly metadata>
-        }
-      }
-
-* **Error Responses:**
-
-  None
-
-* **Sample Call:**
-
-        $.ajax({
-          url: "https://embedly-proxy.dev.mozaws.net/extract?urls=mozilla.org&urls=www.mozilla.com",
-          dataType: "json",
-          type : "GET",
-          success : function(r, data) {
-            console.log(data);
-          }
-        });
+  This V1 API is no longer supported.
 
 Extract V2
 ----
