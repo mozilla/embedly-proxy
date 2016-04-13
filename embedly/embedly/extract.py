@@ -64,8 +64,8 @@ class URLExtractor(object):
 
         if response.status_code != 200:
             raise URLExtractorException(
-                ('Error returned from '
-                 'embedly: {error}').format(error=response.content))
+                ('Error status returned from '
+                 'embedly: {error}').format(error=response.status_code))
 
         embedly_data = []
 
