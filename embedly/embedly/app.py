@@ -39,6 +39,9 @@ def create_app(redis_client=None):
     app.register_blueprint(api.views.blueprint)
 
     app.config['SENTRY_DSN'] = os.environ.get('SENTRY_DSN', '')
+    app.config['SENTRY_PROCESSORS'] = (
+        'raven.processors.RemovePostDataProcessor',
+    )
     app.sentry = Sentry(app)
 
     app.config['BLOCKED_DOMAINS'] = [
