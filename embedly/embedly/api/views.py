@@ -1,6 +1,7 @@
 import json
 
 import redis
+import statsd
 from flask import Blueprint, current_app, request, Response
 from werkzeug.exceptions import HTTPException
 
@@ -17,7 +18,9 @@ def heartbeat():
     # Check cache connectivity
     try:
         current_app.redis_client.ping()
+        statsd.increment('heartbeat.pass')
     except redis.ConnectionError:
+        statsd.increment('heartbeat.fail')
         status = 500
 
     return Response('', status=status)
