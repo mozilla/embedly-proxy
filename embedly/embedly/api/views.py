@@ -70,6 +70,9 @@ def extract_urls_v2():
             'at most {max} URLs in the POST body.'
         ).format(max=current_app.config['MAXIMUM_POST_URLS']))
 
+    if not all(urls):
+        fail(400, 'Do not send empty or null URLs.')
+
     try:
         response_data['urls'] = current_app.extractor.extract_urls(urls)
     except URLExtractorException, e:

@@ -109,6 +109,15 @@ class TestExtractV2(ExtractorTest):
 
         self.assertEqual(response.status_code, 400)
 
+    def test_rejects_calls_null_urls(self):
+        response = self.client.post(
+            '/v2/extract',
+            data=json.dumps({'urls': self.sample_urls + [None]}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+
     def test_extract_returns_embedly_data(self):
         embedly_data = self.get_mock_urls_data(self.sample_urls)
 
