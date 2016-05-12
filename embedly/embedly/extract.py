@@ -43,7 +43,7 @@ class URLExtractor(object):
         params = '&'.join([
             'key={}'.format(self.embedly_key),
             'urls={}'.format(','.join([
-                urllib.quote_plus(url) for url in urls
+                urllib.quote_plus(url.encode('utf8')) for url in urls
             ])),
         ])
 
