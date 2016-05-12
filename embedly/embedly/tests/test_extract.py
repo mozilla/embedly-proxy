@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import json
 
 import requests
@@ -15,7 +16,7 @@ class ExtractorTest(AppTest):
 
         self.sample_urls = [
             'http://example.com/?this=that&things=stuff',
-            'http://www.example.com/path/to/things/?these=those'
+            u'http://www.example.com/path/to/things/?these=中',
         ]
 
         self.expected_response = {
