@@ -15,8 +15,11 @@ dependencies:
     # too big and slowing down the build
     - I="image-$(date +%j).tar"; if [[ -e ~/docker/$I ]]; then echo "Loading $I"; docker load -i ~/docker/$I; fi
 
+    # setup env file
+    - cp .env.circle .env
+
     # create a version.json
-    - make build
+    - make compose_build
 
     # Clean up any old images and save the new one
     - I="image-$(date +%j).tar"; mkdir -p ~/docker; rm ~/docker/*; docker save app:build > ~/docker/$I; ls -l ~/docker

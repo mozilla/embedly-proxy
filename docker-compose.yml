@@ -1,11 +1,13 @@
 embedly:
   build: ./embedly
   env_file: .env
+  user: root
   expose:
     - "7001"
   links:
     - redis
-  restart: always
+    - statsd
+  restart: never 
 
 nginx:
   build: ./nginx
@@ -13,7 +15,16 @@ nginx:
     - embedly
   ports:
     - "80:80"
-  restart: always
+  restart: never 
 
 redis:
   image: redis
+  restart: never
+
+statsd:
+  build: ./statsd
+  tty: true
+  expose:
+    - "8125"
+  ports:
+    - "8125:8125"
