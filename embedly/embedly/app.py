@@ -1,5 +1,7 @@
 import os
 
+from redis import Redis
+from rq import Queue
 import redis
 from flask import Flask
 from flask.ext.cors import CORS
@@ -47,5 +49,7 @@ def create_app(redis_client=None):
     app.config['BLOCKED_DOMAINS'] = [
         'embedly.com',
     ]
+
+    app.job_queue = Queue(connection=app.redis_client)
 
     return app

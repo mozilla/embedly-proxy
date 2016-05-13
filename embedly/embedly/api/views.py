@@ -4,6 +4,7 @@ import redis
 from flask import Blueprint, current_app, request, Response
 from werkzeug.exceptions import HTTPException
 
+from embedly.tasks import get_url_data
 from embedly.stats import statsd_client
 from embedly.extract import URLExtractorException
 
@@ -72,6 +73,10 @@ def extract_urls_v2():
 
     if not all(urls):
         fail(400, 'Do not send empty or null URLs.')
+
+    url = urls[0]
+    print 'Queueing from view', url
+    current_app.job_queue.enqueue(get_url_data, url)
 
     try:
         response_data['urls'] = current_app.extractor.extract_urls(urls)
