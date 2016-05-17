@@ -10,7 +10,7 @@ REDIS_URL = 'redis://{redis_url}'.format(redis_url=os.environ['REDIS_URL'])
 # REDIS_PASSWORD = 'very secret'
 
 # Queues to listen on
-#QUEUES = ['high', 'normal', 'low']
+# QUEUES = ['high', 'normal', 'low']
 
 # If you're using Sentry to collect your runtime exceptions, you can use this
 # to configure RQ for it in a single step
