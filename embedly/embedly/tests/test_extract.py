@@ -12,7 +12,7 @@ class ExtractorTest(AppTest):
     def setUp(self):
         super(ExtractorTest, self).setUp()
 
-        self.extractor = URLExtractor('', '', self.mock_redis, 10)
+        self.extractor = URLExtractor('', '', self.mock_redis, 10, [])
 
         self.sample_urls = [
             'http://example.com/?this=that&things=stuff',

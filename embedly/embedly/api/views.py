@@ -4,6 +4,7 @@ import redis
 from flask import Blueprint, current_app, request, Response
 from werkzeug.exceptions import HTTPException
 
+from embedly.tasks import get_url_data
 from embedly.stats import statsd_client
 from embedly.extract import URLExtractorException
 
@@ -77,6 +78,8 @@ def extract_urls_v2():
         response_data['urls'] = current_app.extractor.extract_urls(urls)
     except URLExtractorException, e:
         fail(500, e.message)
+
+    current_app.job_queue.enqueue(get_url_data, urls)
 
     return Response(
         json.dumps(response_data),

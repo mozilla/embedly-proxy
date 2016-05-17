@@ -13,12 +13,13 @@ class URLExtractorException(Exception):
 
 class URLExtractor(object):
 
-    def __init__(self, embedly_url, embedly_key, redis_client, redis_timeout):
+    def __init__(self, embedly_url, embedly_key, redis_client, redis_timeout,
+                 blocked_domains):
         self.embedly_url = embedly_url
         self.embedly_key = embedly_key
         self.redis_client = redis_client
         self.redis_timeout = redis_timeout
-        self.schema = EmbedlyURLSchema()
+        self.schema = EmbedlyURLSchema(blocked_domains=blocked_domains)
 
     def _get_cache_key(self, url):
         return url
@@ -100,7 +101,7 @@ class URLExtractor(object):
 
         return parsed_data
 
-    def extract_urls(self, urls):
+    def extract_urls(self, urls, remote_fetch=False):
         url_data = {}
 
         uncached_urls = []
@@ -112,7 +113,7 @@ class URLExtractor(object):
             else:
                 uncached_urls.append(url)
 
-        if uncached_urls:
+        if uncached_urls and remote_fetch:
             embedly_url_data = self._get_urls_from_embedly(uncached_urls)
             validated_url_data = {}
 
