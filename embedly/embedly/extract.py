@@ -101,29 +101,38 @@ class URLExtractor(object):
 
         return parsed_data
 
-    def extract_urls(self, urls):
+    def get_cached_urls(self, urls):
         url_data = {}
 
-        uncached_urls = []
         for url in urls:
             cached_url_data = self._get_cached_url(url)
 
             if cached_url_data is not None:
                 url_data[url] = cached_url_data
-            else:
-                uncached_urls.append(url)
 
-        if uncached_urls:
-            embedly_url_data = self._get_urls_from_embedly(uncached_urls)
-            validated_url_data = {}
+        return url_data
 
-            for embedly_url, embedly_data in embedly_url_data.items():
+    def get_remote_urls(self, urls):
+        embedly_urls_data = self._get_urls_from_embedly(urls)
+        validated_urls_data = {}
+
+        for embedly_url in urls:
+            if embedly_url in embedly_urls_data:
+                embedly_data = embedly_urls_data[embedly_url]
                 validated_data = self.schema.load(embedly_data)
 
                 if not validated_data.errors:
                     self._set_cached_url(embedly_url, validated_data.data)
-                    validated_url_data[embedly_url] = validated_data.data
+                    validated_urls_data[embedly_url] = validated_data.data
 
-            url_data.update(validated_url_data)
+        return validated_urls_data
 
-        return url_data
+    def extract_urls(self, urls):
+        urls_data = self.get_cached_urls(urls)
+
+        uncached_urls = set(urls) - set(urls_data.keys())
+
+        if uncached_urls:
+            urls_data.update(self.get_remote_urls(uncached_urls))
+
+        return urls_data

@@ -25,57 +25,7 @@ class ExtractorTest(AppTest):
         }
 
 
-class TestExtract(ExtractorTest):
-
-    def test_multiple_urls_queried_without_caching(self):
-        embedly_data = self.get_mock_urls_data(self.sample_urls)
-
-        self.mock_requests_get.return_value = self.get_mock_response(
-            content=json.dumps(embedly_data))
-
-        extracted_urls = self.extractor.extract_urls(self.sample_urls)
-
-        self.assertEqual(self.mock_redis.get.call_count, 2)
-        self.assertEqual(self.mock_redis.set.call_count, 2)
-        self.assertEqual(self.mock_requests_get.call_count, 1)
-
-        self.assertEqual(extracted_urls, self.expected_response)
-
-    def test_request_error_raises_exception(self):
-        self.mock_requests_get.side_effect = requests.RequestException()
-
-        with self.assertRaises(URLExtractorException):
-            self.extractor.extract_urls(self.sample_urls)
-
-    def test_invalid_json_from_embedly_raises_exception(self):
-        self.mock_requests_get.return_value = self.get_mock_response(
-            content='\invalid json')
-
-        with self.assertRaises(URLExtractorException):
-            self.extractor.extract_urls(self.sample_urls)
-
-    def test_error_from_embedly_raises_exception(self):
-        self.mock_requests_get.return_value = self.get_mock_response(
-            status=400,
-            content=json.dumps({
-                'type': 'error',
-                'error_message': 'error',
-                'error_code': 400,
-            })
-        )
-
-        with self.assertRaises(URLExtractorException):
-            self.extractor.extract_urls(self.sample_urls)
-
-    def test_invalid_json_in_cache_raises_exception(self):
-
-        def mocked_lookup(key):
-            return '\invalid json'
-
-        self.mock_redis.get.side_effect = mocked_lookup
-
-        with self.assertRaises(URLExtractorException):
-            self.extractor.extract_urls(self.sample_urls)
+class TestExtractorExtractURLs(ExtractorTest):
 
     def test_multiple_urls_queried_with_partial_cache_hit(self):
 
@@ -108,16 +58,38 @@ class TestExtract(ExtractorTest):
 
         self.assertEqual(extracted_urls, self.expected_response)
 
-    def test_multiple_urls_queried_with_total_cache_hit(self):
 
-        def mocked_lookup(url):
-            return json.dumps(self.get_mock_url_data(url))
+class TestExtractorGetCachedURLs(ExtractorTest):
+
+    def test_invalid_json_in_cache_raises_exception(self):
+
+        def mocked_lookup(key):
+            return '\invalid json'
 
         self.mock_redis.get.side_effect = mocked_lookup
 
-        extracted_urls = self.extractor.extract_urls(self.sample_urls)
+        with self.assertRaises(URLExtractorException):
+            self.extractor.get_cached_urls(self.sample_urls)
 
-        self.assertEqual(self.mock_redis.get.call_count, 2)
+    def test_multiple_urls_queried_from_cache(self):
+
+        def get_fake_cache(urls):
+            def mocked_lookup(url):
+                if url in urls:
+                    return json.dumps(self.get_mock_url_data(url))
+
+            return mocked_lookup
+
+        self.mock_redis.get.side_effect = get_fake_cache(self.sample_urls)
+
+        # a url with no cache data
+        missing_url = 'http://example.com/notcached'
+
+        extracted_urls = self.extractor.get_cached_urls(
+            self.sample_urls + [missing_url])
+
+        self.assertEqual(self.mock_redis.get.call_count, 3)
+        self.assertEqual(self.mock_redis.set.call_count, 0)
         self.assertEqual(self.mock_requests_get.call_count, 0)
 
         expected_response = {
@@ -126,6 +98,49 @@ class TestExtract(ExtractorTest):
         }
 
         self.assertEqual(extracted_urls, expected_response)
+
+
+class TestExtractorGetRemoteURLs(ExtractorTest):
+
+    def test_multiple_urls_queried_from_embedly(self):
+        embedly_data = self.get_mock_urls_data(self.sample_urls)
+
+        self.mock_requests_get.return_value = self.get_mock_response(
+            content=json.dumps(embedly_data))
+
+        extracted_urls = self.extractor.get_remote_urls(self.sample_urls)
+
+        self.assertEqual(self.mock_redis.get.call_count, 0)
+        self.assertEqual(self.mock_redis.set.call_count, 2)
+        self.assertEqual(self.mock_requests_get.call_count, 1)
+
+        self.assertEqual(extracted_urls, self.expected_response)
+
+    def test_request_error_raises_exception(self):
+        self.mock_requests_get.side_effect = requests.RequestException()
+
+        with self.assertRaises(URLExtractorException):
+            self.extractor.get_remote_urls(self.sample_urls)
+
+    def test_invalid_json_from_embedly_raises_exception(self):
+        self.mock_requests_get.return_value = self.get_mock_response(
+            content='\invalid json')
+
+        with self.assertRaises(URLExtractorException):
+            self.extractor.get_remote_urls(self.sample_urls)
+
+    def test_error_from_embedly_raises_exception(self):
+        self.mock_requests_get.return_value = self.get_mock_response(
+            status=400,
+            content=json.dumps({
+                'type': 'error',
+                'error_message': 'error',
+                'error_code': 400,
+            })
+        )
+
+        with self.assertRaises(URLExtractorException):
+            self.extractor.get_remote_urls(self.sample_urls)
 
     def test_invalid_data_not_included_in_results(self):
         valid_url = 'https://example.com/valid'
@@ -143,12 +158,12 @@ class TestExtract(ExtractorTest):
         self.mock_requests_get.return_value = self.get_mock_response(
             content=json.dumps(embedly_data))
 
-        extracted_urls = self.extractor.extract_urls([
+        extracted_urls = self.extractor.get_remote_urls([
             valid_url,
             invalid_url,
         ])
 
-        self.assertEqual(self.mock_redis.get.call_count, 2)
+        self.assertEqual(self.mock_redis.get.call_count, 0)
         self.assertEqual(self.mock_redis.set.call_count, 1)
         self.assertEqual(self.mock_requests_get.call_count, 1)
 
@@ -172,7 +187,7 @@ class TestExtract(ExtractorTest):
         self.mock_requests_get.return_value = self.get_mock_response(
             content=json.dumps(embedly_data))
 
-        extracted_urls = self.extractor.extract_urls([
+        extracted_urls = self.extractor.get_remote_urls([
             unmodified_url,
             original_modified_url,
         ])
