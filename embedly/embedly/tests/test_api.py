@@ -1,7 +1,6 @@
 import json
 
 import redis
-import requests
 
 from embedly.tests.base import AppTest
 from embedly.tests.test_extract import ExtractorTest
@@ -88,7 +87,7 @@ class TestExtractV2(ExtractorTest):
         })
 
     def test_urlextractorexception_returns_error(self):
-        self.mock_requests_get.side_effect = requests.RequestException()
+        self.mock_redis.get.side_effect = redis.RedisError()
 
         response = self.client.post(
             '/v2/extract',
@@ -118,11 +117,12 @@ class TestExtractV2(ExtractorTest):
 
         self.assertEqual(response.status_code, 400)
 
-    def test_extract_returns_embedly_data(self):
-        embedly_data = self.get_mock_urls_data(self.sample_urls)
+    def test_extract_returns_cached_data(self):
 
-        self.mock_requests_get.return_value = self.get_mock_response(
-            content=json.dumps(embedly_data))
+        def mock_cache_get(url):
+            return json.dumps(self.get_mock_url_data(url))
+
+        self.mock_redis.get.side_effect = mock_cache_get
 
         response = self.client.post(
             '/v2/extract',
@@ -131,6 +131,10 @@ class TestExtractV2(ExtractorTest):
         )
 
         self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(self.mock_redis.get.call_count, len(self.sample_urls))
+        self.assertEqual(self.mock_redis.set.call_count, 0)
+        self.assertEqual(self.mock_requests_get.call_count, 0)
 
         response_data = json.loads(response.data)
         self.assertEqual(response_data, {
