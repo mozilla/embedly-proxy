@@ -74,7 +74,7 @@ def extract_urls_v2():
         fail(400, 'Do not send empty or null URLs.')
 
     try:
-        response_data['urls'] = current_app.extractor.extract_urls(urls)
+        response_data['urls'] = current_app.extractor.get_cached_urls(urls)
     except URLExtractorException, e:
         fail(500, e.message)
 
