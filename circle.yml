@@ -18,8 +18,8 @@ dependencies:
     # setup env file
     - cp .env.circle .env
 
-    # create a version.json
-    - make compose_build
+    # build the container 
+    - make build
 
     # Clean up any old images and save the new one
     - I="image-$(date +%j).tar"; mkdir -p ~/docker; rm ~/docker/*; docker save app:build > ~/docker/$I; ls -l ~/docker
