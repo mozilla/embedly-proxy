@@ -1,6 +1,5 @@
 from urlparse import urlsplit
 
-from flask import current_app
 from marshmallow import Schema, fields
 from publicsuffix import PublicSuffixList
 
@@ -87,6 +86,10 @@ class EmbedlyURLSchema(Schema):
     type = fields.Str(allow_none=True)
     url = fields.Url(allow_none=True)
 
+    def __init__(self, blocked_domains, *args, **kwargs):
+        self.blocked_domains = blocked_domains
+        super(EmbedlyURLSchema, self).__init__(*args, **kwargs)
+
     def load(self, data):
         validated = super(EmbedlyURLSchema, self).load(data)
 
@@ -96,7 +99,7 @@ class EmbedlyURLSchema(Schema):
         original_domain = get_domain(validated.data.get('original_url', ''))
 
         disallowed_domains = [
-            domain for domain in current_app.config['BLOCKED_DOMAINS']
+            domain for domain in self.blocked_domains
             if domain != original_domain
         ]
 

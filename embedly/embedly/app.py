@@ -36,6 +36,7 @@ def get_extractor(redis_client=None):
         config['EMBEDLY_KEY'],
         redis_client or get_redis_client(),
         config['REDIS_TIMEOUT'],
+        config['BLOCKED_DOMAINS'],
     )
 
 
