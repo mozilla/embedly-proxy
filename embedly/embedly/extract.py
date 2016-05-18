@@ -1,6 +1,7 @@
 import json
 import urllib
 
+import redis
 import requests
 
 from embedly.stats import statsd_client
@@ -26,7 +27,11 @@ class URLExtractor(object):
 
     def _get_cached_url(self, url):
         cache_key = self._get_cache_key(url)
-        cached_data = self.redis_client.get(cache_key)
+
+        try:
+            cached_data = self.redis_client.get(cache_key)
+        except redis.RedisError:
+            raise URLExtractorException('Unable to read from redis.')
 
         if cached_data is not None:
             statsd_client.incr('redis_cache_hit')
@@ -41,9 +46,13 @@ class URLExtractor(object):
 
     def _set_cached_url(self, url, data):
         cache_key = self._get_cache_key(url)
-        self.redis_client.set(cache_key, json.dumps(data))
-        self.redis_client.expire(cache_key, self.redis_timeout)
-        statsd_client.incr('redis_cache_write')
+
+        try:
+            self.redis_client.set(cache_key, json.dumps(data))
+            self.redis_client.expire(cache_key, self.redis_timeout)
+            statsd_client.incr('redis_cache_write')
+        except redis.RedisError:
+            raise URLExtractorException('Unable to write to redis.')
 
     def _build_embedly_url(self, urls):
         params = '&'.join([

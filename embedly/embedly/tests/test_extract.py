@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 
+import redis
 import requests
 
 from embedly.extract import URLExtractor, URLExtractorException
@@ -71,6 +72,12 @@ class TestExtractorGetCachedURLs(ExtractorTest):
         with self.assertRaises(URLExtractorException):
             self.extractor.get_cached_urls(self.sample_urls)
 
+    def test_redis_get_error_raises_exception(self):
+        self.mock_redis.get.side_effect = redis.RedisError
+
+        with self.assertRaises(URLExtractorException):
+            self.extractor.get_cached_urls(self.sample_urls)
+
     def test_multiple_urls_queried_from_cache(self):
 
         def get_fake_cache(urls):
@@ -115,6 +122,20 @@ class TestExtractorGetRemoteURLs(ExtractorTest):
         self.assertEqual(self.mock_requests_get.call_count, 1)
 
         self.assertEqual(extracted_urls, self.expected_response)
+
+    def test_redis_get_error_raises_exception(self):
+        self.mock_redis.set.side_effect = redis.RedisError
+
+        embedly_data = self.get_mock_urls_data(self.sample_urls)
+
+        self.mock_requests_get.return_value = self.get_mock_response(
+            content=json.dumps(embedly_data))
+
+        with self.assertRaises(URLExtractorException):
+            self.extractor.get_remote_urls(self.sample_urls)
+
+        self.assertEqual(self.mock_requests_get.call_count, 1)
+        self.assertEqual(self.mock_redis.set.call_count, 1)
 
     def test_request_error_raises_exception(self):
         self.mock_requests_get.side_effect = requests.RequestException()
