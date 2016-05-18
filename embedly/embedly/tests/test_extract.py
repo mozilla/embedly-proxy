@@ -12,7 +12,7 @@ class ExtractorTest(AppTest):
     def setUp(self):
         super(ExtractorTest, self).setUp()
 
-        self.extractor = URLExtractor('', '', self.mock_redis, 10)
+        self.extractor = URLExtractor('', '', self.mock_redis, 10, [])
 
         self.sample_urls = [
             'http://example.com/?this=that&things=stuff',
@@ -33,8 +33,7 @@ class TestExtract(ExtractorTest):
         self.mock_requests_get.return_value = self.get_mock_response(
             content=json.dumps(embedly_data))
 
-        with self.app.app_context():
-            extracted_urls = self.extractor.extract_urls(self.sample_urls)
+        extracted_urls = self.extractor.extract_urls(self.sample_urls)
 
         self.assertEqual(self.mock_redis.get.call_count, 2)
         self.assertEqual(self.mock_redis.set.call_count, 2)
@@ -97,8 +96,7 @@ class TestExtract(ExtractorTest):
         self.mock_requests_get.return_value = self.get_mock_response(
             content=json.dumps(embedly_data))
 
-        with self.app.app_context():
-            extracted_urls = self.extractor.extract_urls(self.sample_urls)
+        extracted_urls = self.extractor.extract_urls(self.sample_urls)
 
         self.assertEqual(self.mock_redis.get.call_count, 2)
         self.assertEqual(self.mock_requests_get.call_count, 1)
@@ -145,11 +143,10 @@ class TestExtract(ExtractorTest):
         self.mock_requests_get.return_value = self.get_mock_response(
             content=json.dumps(embedly_data))
 
-        with self.app.app_context():
-            extracted_urls = self.extractor.extract_urls([
-                valid_url,
-                invalid_url,
-            ])
+        extracted_urls = self.extractor.extract_urls([
+            valid_url,
+            invalid_url,
+        ])
 
         self.assertEqual(self.mock_redis.get.call_count, 2)
         self.assertEqual(self.mock_redis.set.call_count, 1)
@@ -175,11 +172,10 @@ class TestExtract(ExtractorTest):
         self.mock_requests_get.return_value = self.get_mock_response(
             content=json.dumps(embedly_data))
 
-        with self.app.app_context():
-            extracted_urls = self.extractor.extract_urls([
-                unmodified_url,
-                original_modified_url,
-            ])
+        extracted_urls = self.extractor.extract_urls([
+            unmodified_url,
+            original_modified_url,
+        ])
 
         self.assertIn(unmodified_url, extracted_urls)
         self.assertNotIn(original_modified_url, extracted_urls)

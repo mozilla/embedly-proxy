@@ -13,12 +13,13 @@ class URLExtractorException(Exception):
 
 class URLExtractor(object):
 
-    def __init__(self, embedly_url, embedly_key, redis_client, redis_timeout):
+    def __init__(self, embedly_url, embedly_key, redis_client, redis_timeout,
+                 blocked_domains):
         self.embedly_url = embedly_url
         self.embedly_key = embedly_key
         self.redis_client = redis_client
         self.redis_timeout = redis_timeout
-        self.schema = EmbedlyURLSchema()
+        self.schema = EmbedlyURLSchema(blocked_domains=blocked_domains)
 
     def _get_cache_key(self, url):
         return url
