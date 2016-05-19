@@ -141,3 +141,66 @@ class TestExtractV2(ExtractorTest):
             'urls': self.expected_response,
             'error': '',
         })
+
+    def test_extract_sends_uncached_urls_to_job_queue(self):
+        cached_urls = self.sample_urls[:1]
+
+        def fake_cache(urls):
+            def mock_cache_get(url):
+                if url in urls:
+                    return json.dumps(self.get_mock_url_data(url))
+
+            return mock_cache_get
+
+        self.mock_redis.get.side_effect = fake_cache(cached_urls)
+
+        response = self.client.post(
+            '/v2/extract',
+            data=json.dumps({'urls': self.sample_urls}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(self.mock_redis.get.call_count, len(self.sample_urls))
+        self.assertEqual(self.mock_redis.set.call_count, 0)
+        self.assertEqual(self.mock_requests_get.call_count, 0)
+        self.assertEqual(self.mock_job_queue.enqueue.call_count, 1)
+
+        response_data = json.loads(response.data)
+        self.assertEqual(response_data, {
+            'urls': {url: self.get_mock_url_data(url) for url in cached_urls},
+            'error': '',
+        })
+
+    def test_job_queue_failure_returns_cached_data(self):
+        cached_urls = self.sample_urls[:1]
+
+        def fake_cache(urls):
+            def mock_cache_get(url):
+                if url in urls:
+                    return json.dumps(self.get_mock_url_data(url))
+
+            return mock_cache_get
+
+        self.mock_redis.get.side_effect = fake_cache(cached_urls)
+        self.mock_job_queue.enqueue.side_effect = Exception
+
+        response = self.client.post(
+            '/v2/extract',
+            data=json.dumps({'urls': self.sample_urls}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(self.mock_redis.get.call_count, len(self.sample_urls))
+        self.assertEqual(self.mock_redis.set.call_count, 0)
+        self.assertEqual(self.mock_requests_get.call_count, 0)
+        self.assertEqual(self.mock_job_queue.enqueue.call_count, 1)
+
+        response_data = json.loads(response.data)
+        self.assertEqual(response_data, {
+            'urls': {url: self.get_mock_url_data(url) for url in cached_urls},
+            'error': '',
+        })

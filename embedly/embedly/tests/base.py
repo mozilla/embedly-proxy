@@ -116,7 +116,10 @@ class AppTest(TestCase):
         self.mock_redis.get.return_value = None
         self.mock_redis.set.return_value = None
 
-        self.app = create_app(redis_client=self.mock_redis)
+        self.mock_job_queue = mock.Mock()
+
+        self.app = create_app(
+            redis_client=self.mock_redis, job_queue=self.mock_job_queue)
         self.app.config['DEBUG'] = True
         self.app.config['TESTING'] = True
 

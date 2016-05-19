@@ -4,8 +4,9 @@ import redis
 from flask import Blueprint, current_app, request, Response
 from werkzeug.exceptions import HTTPException
 
-from embedly.stats import statsd_client
 from embedly.extract import URLExtractorException
+from embedly.stats import statsd_client
+from embedly.tasks import fetch_remote_url_data
 
 
 blueprint = Blueprint('views', __name__)
@@ -74,9 +75,20 @@ def extract_urls_v2():
         fail(400, 'Do not send empty or null URLs.')
 
     try:
-        response_data['urls'] = current_app.extractor.get_cached_urls(urls)
+        cached_url_data = current_app.extractor.get_cached_urls(urls)
     except URLExtractorException, e:
         fail(500, e.message)
+
+    uncached_urls = set(urls) - set(cached_url_data.keys())
+
+    if uncached_urls:
+        try:
+            current_app.job_queue.enqueue(fetch_remote_url_data, uncached_urls)
+            statsd_client.gauge('request_fetch_job_create', len(uncached_urls))
+        except Exception:
+            statsd_client.incr('request_fetch_job_create_fail')
+
+    response_data['urls'] = cached_url_data
 
     return Response(
         json.dumps(response_data),
