@@ -4,6 +4,7 @@ import redis
 from flask import Flask
 from flask.ext.cors import CORS
 from raven.contrib.flask import Sentry
+from rq import Queue
 
 import api.views
 from extract import URLExtractor
@@ -40,7 +41,7 @@ def get_extractor(redis_client=None):
     )
 
 
-def create_app(redis_client=None):
+def create_app(redis_client=None, job_queue=None):
     config = get_config()
 
     app = Flask(__name__)
@@ -61,5 +62,7 @@ def create_app(redis_client=None):
     app.register_blueprint(api.views.blueprint)
 
     app.sentry = Sentry(app)
+
+    app.job_queue = job_queue or Queue(connection=app.redis_client)
 
     return app

@@ -9,6 +9,14 @@ embedly:
     - statsd
   restart: never 
 
+worker:
+  build: ./embedly
+  env_file: .env
+  links:
+    - redis
+    - statsd
+  command: rq worker -c rq_settings
+
 nginx:
   build: ./nginx
   links:
