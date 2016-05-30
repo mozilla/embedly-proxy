@@ -25,8 +25,10 @@ class ExtractorTest(AppTest):
             '',
             self.mock_redis,
             10,
+            10,
             [],
-            self.mock_job_queue, self.app.config['URL_BATCH_SIZE'],
+            self.mock_job_queue,
+            self.app.config['URL_BATCH_SIZE'],
         )
 
         self.sample_urls = [
@@ -65,6 +67,7 @@ class TestExtractorExtractURLsAsync(ExtractorTest):
         cached_url_data = self.extractor.extract_urls_async(sample_urls)
 
         self.assertEqual(self.mock_redis.get.call_count, len(sample_urls))
+        self.assertEqual(self.mock_redis.set.call_count, len(uncached_urls))
         self.assertEqual(self.mock_requests_get.call_count, 0)
 
         self.assertEqual(
@@ -73,6 +76,44 @@ class TestExtractorExtractURLsAsync(ExtractorTest):
         )
 
         self.assertEqual(cached_url_data, self.get_response_data([cached_url]))
+
+    def test_url_queried_multiple_times_starts_only_one_job(self):
+        mock_cache = {}
+
+        def mock_set(key, value, *args, **kwargs):
+            mock_cache[key] = value
+
+        def mock_get(key):
+            return mock_cache[key] if key in mock_cache else None
+
+        self.mock_redis.get.side_effect = mock_get
+        self.mock_redis.set.side_effect = mock_set
+
+        first_urls = ['http://www.example.com/1', 'http://www.example.com/2']
+
+        cached_url_data = self.extractor.extract_urls_async(first_urls)
+
+        self.assertEqual(cached_url_data, {})
+        self.assertEqual(self.mock_redis.get.call_count, 2)
+        self.assertEqual(self.mock_redis.set.call_count, 2)
+        self.assertEqual(self.mock_requests_get.call_count, 0)
+        self.assertEqual(self.mock_job_queue.enqueue.call_count, 1)
+        self.assertEqual(
+            self.mock_job_queue.enqueue.call_args[0][1], first_urls)
+
+        second_urls = ['http://www.example.com/2', 'http://www.example.com/3']
+
+        cached_url_data = self.extractor.extract_urls_async(second_urls)
+
+        self.assertEqual(cached_url_data, {})
+        self.assertEqual(self.mock_redis.get.call_count, 4)
+        self.assertEqual(self.mock_redis.set.call_count, 3)
+        self.assertEqual(self.mock_requests_get.call_count, 0)
+        self.assertEqual(self.mock_job_queue.enqueue.call_count, 2)
+        self.assertEqual(
+            self.mock_job_queue.enqueue.call_args[0][1],
+            ['http://www.example.com/3'],
+        )
 
 
 class TestExtractorGetCachedURLs(ExtractorTest):
