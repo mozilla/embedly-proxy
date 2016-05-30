@@ -13,6 +13,7 @@ from extract import URLExtractor
 def get_config():
     return {
         'MAXIMUM_POST_URLS': 25,
+        'URL_BATCH_SIZE': 5,
         'EMBEDLY_URL': 'https://api.embedly.com/1/extract',
         'EMBEDLY_KEY': os.environ.get('EMBEDLY_KEY', None),
         'REDIS_TIMEOUT': 24 * 60 * 60,  # 24 hour timeout

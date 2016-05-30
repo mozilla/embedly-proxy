@@ -12,6 +12,12 @@ from embedly.tasks import fetch_remote_url_data
 blueprint = Blueprint('views', __name__)
 
 
+def group_by(items, size):
+    while items:
+        yield items[:size]
+        items = items[size:]
+
+
 @blueprint.route('/__heartbeat__')
 def heartbeat():
     status = 200
@@ -82,11 +88,13 @@ def extract_urls_v2():
     uncached_urls = set(urls) - set(cached_url_data.keys())
 
     if uncached_urls:
-        try:
-            current_app.job_queue.enqueue(fetch_remote_url_data, uncached_urls)
-            statsd_client.gauge('request_fetch_job_create', len(uncached_urls))
-        except Exception:
-            statsd_client.incr('request_fetch_job_create_fail')
+        for url_batch in group_by(
+                list(uncached_urls), current_app.config['URL_BATCH_SIZE']):
+            try:
+                current_app.job_queue.enqueue(fetch_remote_url_data, url_batch)
+                statsd_client.gauge('request_fetch_job_create', len(url_batch))
+            except Exception:
+                statsd_client.incr('request_fetch_job_create_fail')
 
     response_data['urls'] = cached_url_data
 
