@@ -84,7 +84,10 @@ class URLExtractor(object):
             statsd_client.incr('embedly_request_failure')
             raise URLExtractorException(
                 ('Error status returned from '
-                 'embedly: {error}').format(error=response.status_code))
+                 'embedly: {error_code} {error_message}').format(
+                    error_code=response.status_code,
+                    error_message=response.content,
+                  ))
 
         statsd_client.incr('embedly_request_success')
 
