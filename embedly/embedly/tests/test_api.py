@@ -1,4 +1,5 @@
 import json
+import random
 
 import redis
 
@@ -142,8 +143,13 @@ class TestExtractV2(ExtractorTest):
             'error': '',
         })
 
-    def test_extract_sends_uncached_urls_to_job_queue(self):
-        cached_urls = self.sample_urls[:1]
+    def test_extract_sends_uncached_urls_to_job_queue_in_batches(self):
+        urls = [
+            'http://www.example.com/{}'.format(random.random())
+            for i in range(5)
+        ]
+        cached_urls = urls[:1]
+        uncached_urls = urls[1:]
 
         def fake_cache(urls):
             def mock_cache_get(url):
@@ -156,16 +162,19 @@ class TestExtractV2(ExtractorTest):
 
         response = self.client.post(
             '/v2/extract',
-            data=json.dumps({'urls': self.sample_urls}),
+            data=json.dumps({'urls': urls}),
             content_type='application/json',
         )
 
         self.assertEqual(response.status_code, 200)
 
-        self.assertEqual(self.mock_redis.get.call_count, len(self.sample_urls))
+        self.assertEqual(self.mock_redis.get.call_count, len(urls))
         self.assertEqual(self.mock_redis.set.call_count, 0)
         self.assertEqual(self.mock_requests_get.call_count, 0)
-        self.assertEqual(self.mock_job_queue.enqueue.call_count, 1)
+        self.assertEqual(
+            self.mock_job_queue.enqueue.call_count,
+            (len(uncached_urls)/self.app.config['URL_BATCH_SIZE']) + 1,
+        )
 
         response_data = json.loads(response.data)
         self.assertEqual(response_data, {
