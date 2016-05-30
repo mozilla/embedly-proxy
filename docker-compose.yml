@@ -15,7 +15,7 @@ worker:
   links:
     - redis
     - statsd
-  command: rq worker -c rq_settings
+  command: rq worker -c rq_settings --exception-handler 'rq_exception_handler.ignore_failed_jobs'
 
 nginx:
   build: ./nginx
