@@ -30,7 +30,13 @@ def get_redis_client():  # pragma: nocover
     return redis.StrictRedis(host=config['REDIS_URL'], port=6379, db=0)
 
 
-def get_extractor(redis_client=None):
+def get_job_queue(redis_client=None):
+    redis_client = redis_client or get_redis_client()
+
+    return Queue(connection=redis_client)
+
+
+def get_extractor(redis_client=None, job_queue=None):
     config = get_config()
 
     return URLExtractor(
@@ -39,6 +45,8 @@ def get_extractor(redis_client=None):
         redis_client or get_redis_client(),
         config['REDIS_TIMEOUT'],
         config['BLOCKED_DOMAINS'],
+        job_queue or get_job_queue(),
+        config['URL_BATCH_SIZE'],
     )
 
 
@@ -53,7 +61,9 @@ def create_app(redis_client=None, job_queue=None):
 
     app.redis_client = redis_client or get_redis_client()
 
-    app.extractor = get_extractor(redis_client)
+    app.job_queue = job_queue or get_job_queue(app.redis_client)
+
+    app.extractor = get_extractor(app.redis_client, app.job_queue)
 
     app.config['VERSION_INFO'] = ''
     if os.path.exists('./version.json'):  # pragma: no cover
@@ -63,7 +73,5 @@ def create_app(redis_client=None, job_queue=None):
     app.register_blueprint(api.views.blueprint)
 
     app.sentry = Sentry(app)
-
-    app.job_queue = job_queue or Queue(connection=app.redis_client)
 
     return app

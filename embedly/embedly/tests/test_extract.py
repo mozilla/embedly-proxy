@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import random
 import json
 
 import redis
@@ -10,25 +11,39 @@ from embedly.tests.base import AppTest
 
 class ExtractorTest(AppTest):
 
+    def get_response_data(self, urls):
+        return {
+            url: self.get_mock_url_data(url)
+            for url in urls
+        }
+
     def setUp(self):
         super(ExtractorTest, self).setUp()
 
-        self.extractor = URLExtractor('', '', self.mock_redis, 10, [])
+        self.extractor = URLExtractor(
+            '',
+            '',
+            self.mock_redis,
+            10,
+            [],
+            self.mock_job_queue, self.app.config['URL_BATCH_SIZE'],
+        )
 
         self.sample_urls = [
             'http://example.com/?this=that&things=stuff',
             u'http://www.example.com/path/to/things/?these=中',
         ]
 
-        self.expected_response = {
-            url: self.get_mock_url_data(url)
-            for url in self.sample_urls
-        }
+        self.expected_response = self.get_response_data(self.sample_urls)
 
 
-class TestExtractorExtractURLs(ExtractorTest):
+class TestExtractorExtractURLsAsync(ExtractorTest):
 
-    def test_multiple_urls_queried_with_partial_cache_hit(self):
+    def test_multiple_urls_queried_with_cache_hit_and_jobs_started(self):
+        sample_urls = [
+            'http://www.example.com/{}'.format(random.random())
+            for i in range(self.app.config['URL_BATCH_SIZE'] * 3)
+        ]
 
         def get_mocked_cache_lookup(url, cached_data):
             def mocked_lookup(key):
@@ -37,27 +52,27 @@ class TestExtractorExtractURLs(ExtractorTest):
 
             return mocked_lookup
 
-        cached_url = self.sample_urls[0]
+        cached_url = sample_urls[0]
         self.mock_redis.get.side_effect = get_mocked_cache_lookup(
             cached_url, self.get_mock_url_data(cached_url))
 
-        uncached_urls = self.sample_urls[1:]
+        uncached_urls = sample_urls[1:]
         embedly_data = self.get_mock_urls_data(uncached_urls)
 
         self.mock_requests_get.return_value = self.get_mock_response(
             content=json.dumps(embedly_data))
 
-        extracted_urls = self.extractor.extract_urls(self.sample_urls)
+        cached_url_data = self.extractor.extract_urls_async(sample_urls)
 
-        self.assertEqual(self.mock_redis.get.call_count, 2)
-        self.assertEqual(self.mock_requests_get.call_count, 1)
+        self.assertEqual(self.mock_redis.get.call_count, len(sample_urls))
+        self.assertEqual(self.mock_requests_get.call_count, 0)
 
         self.assertEqual(
-            self.mock_requests_get.call_args[0][0],
-            self.extractor._build_embedly_url(uncached_urls),
+            self.mock_job_queue.enqueue.call_count,
+            (len(uncached_urls)/self.app.config['URL_BATCH_SIZE']) + 1,
         )
 
-        self.assertEqual(extracted_urls, self.expected_response)
+        self.assertEqual(cached_url_data, self.get_response_data([cached_url]))
 
 
 class TestExtractorGetCachedURLs(ExtractorTest):

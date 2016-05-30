@@ -5,7 +5,14 @@ import redis
 import requests
 
 from embedly.stats import statsd_client
-from schema import EmbedlyURLSchema
+from embedly.tasks import fetch_remote_url_data
+from embedly.schema import EmbedlyURLSchema
+
+
+def group_by(items, size):
+    while items:
+        yield items[:size]
+        items = items[size:]
 
 
 class URLExtractorException(Exception):
@@ -15,12 +22,14 @@ class URLExtractorException(Exception):
 class URLExtractor(object):
 
     def __init__(self, embedly_url, embedly_key, redis_client, redis_timeout,
-                 blocked_domains):
+                 blocked_domains, job_queue, url_batch_size):
         self.embedly_url = embedly_url
         self.embedly_key = embedly_key
         self.redis_client = redis_client
         self.redis_timeout = redis_timeout
         self.schema = EmbedlyURLSchema(blocked_domains=blocked_domains)
+        self.job_queue = job_queue
+        self.url_batch_size = url_batch_size
 
     def _get_cache_key(self, url):
         return url
@@ -139,12 +148,19 @@ class URLExtractor(object):
 
         return validated_urls_data
 
-    def extract_urls(self, urls):
-        urls_data = self.get_cached_urls(urls)
+    def extract_urls_async(self, urls):
+        cached_url_data = self.get_cached_urls(urls)
 
-        uncached_urls = set(urls) - set(urls_data.keys())
+        uncached_urls = set(urls) - set(cached_url_data.keys())
 
         if uncached_urls:
-            urls_data.update(self.get_remote_urls(uncached_urls))
+            for url_batch in group_by(
+                    list(uncached_urls), self.url_batch_size):
+                try:
+                    self.job_queue.enqueue(fetch_remote_url_data, url_batch)
+                    statsd_client.gauge(
+                        'request_fetch_job_create', len(url_batch))
+                except Exception:
+                    statsd_client.incr('request_fetch_job_create_fail')
 
-        return urls_data
+        return cached_url_data
