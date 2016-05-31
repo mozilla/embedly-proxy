@@ -1,4 +1,5 @@
-def fetch_remote_url_data(urls, redis_client=None):
+def fetch_remote_url_data(urls, start_time, redis_client=None):
+    import time
     from embedly.app import get_extractor
     from embedly.stats import statsd_client
 
@@ -9,3 +10,6 @@ def fetch_remote_url_data(urls, redis_client=None):
     url_data = extractor.get_remote_urls(urls)
 
     statsd_client.gauge('task_fetch_url_cached', len(url_data.keys()))
+
+    job_time = int((time.time() - start_time) * 1000)
+    statsd_client.timing('task_fetch_url_time', job_time)
