@@ -169,7 +169,7 @@ class TestExtractV2(ExtractorTest):
         self.assertEqual(response.status_code, 200)
 
         self.assertEqual(self.mock_redis.get.call_count, len(urls))
-        self.assertEqual(self.mock_redis.set.call_count, 0)
+        self.assertEqual(self.mock_redis.set.call_count, 4)
         self.assertEqual(self.mock_requests_get.call_count, 0)
         self.assertEqual(
             self.mock_job_queue.enqueue.call_count,

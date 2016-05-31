@@ -16,7 +16,8 @@ def get_config():
         'URL_BATCH_SIZE': 5,
         'EMBEDLY_URL': 'https://api.embedly.com/1/extract',
         'EMBEDLY_KEY': os.environ.get('EMBEDLY_KEY', None),
-        'REDIS_TIMEOUT': 24 * 60 * 60,  # 24 hour timeout
+        'REDIS_DATA_TIMEOUT': 24 * 60 * 60,  # 24 hour timeout
+        'REDIS_JOB_TIMEOUT': 60 * 60,  # 1 hour timeout
         'REDIS_URL': os.environ.get('REDIS_URL', None),
         'SENTRY_DSN': os.environ.get('SENTRY_DSN', ''),
         'SENTRY_PROCESSORS': ('raven.processors.RemovePostDataProcessor',),
@@ -43,7 +44,8 @@ def get_extractor(redis_client=None, job_queue=None):
         config['EMBEDLY_URL'],
         config['EMBEDLY_KEY'],
         redis_client or get_redis_client(),
-        config['REDIS_TIMEOUT'],
+        config['REDIS_DATA_TIMEOUT'],
+        config['REDIS_JOB_TIMEOUT'],
         config['BLOCKED_DOMAINS'],
         job_queue or get_job_queue(),
         config['URL_BATCH_SIZE'],
