@@ -135,6 +135,8 @@ class URLExtractor(object):
                 self.job_queue.enqueue(fetch_remote_url_data, url_batch)
                 statsd_client.gauge(
                     'request_fetch_job_create', len(url_batch))
+                statsd_client.gauge(
+                    'request_fetch_job_queue_size', self.job_queue.count)
 
                 for queued_url in url_batch:
                     self._set_cached_url(
