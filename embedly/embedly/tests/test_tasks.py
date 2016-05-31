@@ -1,3 +1,4 @@
+import time
 import json
 
 import requests
@@ -26,7 +27,8 @@ class TestFetchRemoteUrlDataTask(ExtractorTest):
         self.mock_requests_get.return_value = self.get_mock_response(
             content=json.dumps(embedly_data))
 
-        fetch_remote_url_data(self.sample_urls, redis_client=self.mock_redis)
+        fetch_remote_url_data(
+            self.sample_urls, time.time(), redis_client=self.mock_redis)
 
         self.assertEqual(self.mock_requests_get.call_count, 1)
         self.assertEqual(self.mock_redis.delete.call_count, 1)
@@ -58,7 +60,7 @@ class TestFetchRemoteUrlDataTask(ExtractorTest):
 
         with self.assertRaises(URLExtractorException):
             fetch_remote_url_data(
-                self.sample_urls, redis_client=self.mock_redis)
+                self.sample_urls, time.time(), redis_client=self.mock_redis)
 
         self.assertEqual(self.mock_requests_get.call_count, 1)
         self.assertEqual(self.mock_redis.delete.call_count, 1)

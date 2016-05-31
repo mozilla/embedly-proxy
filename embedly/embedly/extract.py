@@ -1,4 +1,5 @@
 import json
+import time
 import urllib
 
 import redis
@@ -132,7 +133,8 @@ class URLExtractor(object):
 
         for url_batch in batched_urls:
             try:
-                self.job_queue.enqueue(fetch_remote_url_data, url_batch)
+                self.job_queue.enqueue(
+                    fetch_remote_url_data, url_batch, time.time())
                 statsd_client.gauge(
                     'request_fetch_job_create', len(url_batch))
                 statsd_client.gauge(
