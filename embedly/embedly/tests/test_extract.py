@@ -28,6 +28,7 @@ class ExtractorTest(AppTest):
             10,
             [],
             self.mock_job_queue,
+            10,
             self.app.config['URL_BATCH_SIZE'],
         )
 

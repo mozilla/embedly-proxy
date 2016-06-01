@@ -27,7 +27,7 @@ class URLExtractor(object):
 
     def __init__(self, embedly_url, embedly_key, redis_client,
                  redis_data_timeout, redis_job_timeout, blocked_domains,
-                 job_queue, url_batch_size):
+                 job_queue, job_ttl, url_batch_size):
         self.embedly_url = embedly_url
         self.embedly_key = embedly_key
         self.redis_client = redis_client
@@ -35,6 +35,7 @@ class URLExtractor(object):
         self.redis_job_timeout = redis_job_timeout
         self.schema = EmbedlyURLSchema(blocked_domains=blocked_domains)
         self.job_queue = job_queue
+        self.job_ttl = job_ttl
         self.url_batch_size = url_batch_size
 
     def _get_cache_key(self, url):
@@ -134,7 +135,12 @@ class URLExtractor(object):
         for url_batch in batched_urls:
             try:
                 self.job_queue.enqueue(
-                    fetch_remote_url_data, url_batch, time.time())
+                    fetch_remote_url_data,
+                    url_batch,
+                    time.time(),
+                    ttl=self.job_ttl,
+                    at_front=True,
+                )
                 statsd_client.gauge(
                     'request_fetch_job_create', len(url_batch))
                 statsd_client.gauge(
