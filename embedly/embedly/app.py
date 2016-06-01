@@ -14,6 +14,7 @@ def get_config():
     return {
         'MAXIMUM_POST_URLS': 25,
         'URL_BATCH_SIZE': 5,
+        'JOB_TTL': 300,
         'EMBEDLY_URL': 'https://api.embedly.com/1/extract',
         'EMBEDLY_KEY': os.environ.get('EMBEDLY_KEY', None),
         'REDIS_DATA_TIMEOUT': 24 * 60 * 60,  # 24 hour timeout
@@ -48,6 +49,7 @@ def get_extractor(redis_client=None, job_queue=None):
         config['REDIS_JOB_TIMEOUT'],
         config['BLOCKED_DOMAINS'],
         job_queue or get_job_queue(),
+        config['JOB_TTL'],
         config['URL_BATCH_SIZE'],
     )
 
