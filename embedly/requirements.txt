@@ -1,6 +1,7 @@
 Flask-Cors==2.1.2
 Flask==0.10.1
 blinker==1.4
+celery==3.1.23
 gevent==1.0.2
 gunicorn==19.4.5
 marshmallow==2.6.0
@@ -10,5 +11,4 @@ publicsuffix2==2.1.0
 raven==5.12.0
 redis==2.10.5
 requests==2.9.1
-rq==0.6.0
 statsd==3.2.1

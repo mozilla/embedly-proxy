@@ -1,13 +1,12 @@
 import os
 
 import redis
+from celery import Celery
 from flask import Flask
 from flask.ext.cors import CORS
 from raven.contrib.flask import Sentry
-from rq import Queue
 
 import api.views
-from extract import URLExtractor
 
 
 def get_config():
@@ -32,13 +31,9 @@ def get_redis_client():  # pragma: nocover
     return redis.StrictRedis(host=config['REDIS_URL'], port=6379, db=0)
 
 
-def get_job_queue(redis_client=None):
-    redis_client = redis_client or get_redis_client()
+def get_extractor(redis_client=None):
+    from extract import URLExtractor
 
-    return Queue(connection=redis_client)
-
-
-def get_extractor(redis_client=None, job_queue=None):
     config = get_config()
 
     return URLExtractor(
@@ -48,13 +43,27 @@ def get_extractor(redis_client=None, job_queue=None):
         config['REDIS_DATA_TIMEOUT'],
         config['REDIS_JOB_TIMEOUT'],
         config['BLOCKED_DOMAINS'],
-        job_queue or get_job_queue(),
         config['JOB_TTL'],
         config['URL_BATCH_SIZE'],
     )
 
 
-def create_app(redis_client=None, job_queue=None):
+def get_celery():
+    config = get_config()
+
+    redis_url = 'redis://{redis_url}:6379'.format(
+        redis_url=config['REDIS_URL'])
+
+    celery = Celery(
+        'embedly',
+        backend=redis_url,
+        broker=redis_url,
+    )
+
+    return celery
+
+
+def create_app(redis_client=None):
     config = get_config()
 
     app = Flask(__name__)
@@ -65,9 +74,7 @@ def create_app(redis_client=None, job_queue=None):
 
     app.redis_client = redis_client or get_redis_client()
 
-    app.job_queue = job_queue or get_job_queue(app.redis_client)
-
-    app.extractor = get_extractor(app.redis_client, app.job_queue)
+    app.extractor = get_extractor(app.redis_client)
 
     app.config['VERSION_INFO'] = ''
     if os.path.exists('./version.json'):  # pragma: no cover

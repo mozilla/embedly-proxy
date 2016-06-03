@@ -15,7 +15,7 @@ worker:
   links:
     - redis
     - statsd
-  command: rq worker -c rq_settings --exception-handler 'rq_exception_handler.ignore_failed_jobs'
+  command: celery -P gevent -A embedly.tasks -c 20 worker 
 
 nginx:
   build: ./nginx

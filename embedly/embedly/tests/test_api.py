@@ -5,6 +5,7 @@ import redis
 
 from embedly.tests.base import AppTest
 from embedly.tests.test_extract import ExtractorTest
+from embedly.extract import URLExtractor
 
 
 class TestHeartbeat(AppTest):
@@ -172,7 +173,7 @@ class TestExtractV2(ExtractorTest):
         self.assertEqual(self.mock_redis.set.call_count, 4)
         self.assertEqual(self.mock_requests_get.call_count, 0)
         self.assertEqual(
-            self.mock_job_queue.enqueue.call_count,
+            self.mock_fetch_task.delay.call_count,
             (len(uncached_urls)/self.app.config['URL_BATCH_SIZE']) + 1,
         )
 
@@ -193,7 +194,8 @@ class TestExtractV2(ExtractorTest):
             return mock_cache_get
 
         self.mock_redis.get.side_effect = fake_cache(cached_urls)
-        self.mock_job_queue.enqueue.side_effect = Exception
+        self.mock_fetch_task.delay.side_effect = (
+            URLExtractor.URLExtractorException)
 
         response = self.client.post(
             '/v2/extract',
@@ -206,7 +208,7 @@ class TestExtractV2(ExtractorTest):
         self.assertEqual(self.mock_redis.get.call_count, len(self.sample_urls))
         self.assertEqual(self.mock_redis.set.call_count, 0)
         self.assertEqual(self.mock_requests_get.call_count, 0)
-        self.assertEqual(self.mock_job_queue.enqueue.call_count, 1)
+        self.assertEqual(self.mock_fetch_task.delay.call_count, 1)
 
         response_data = json.loads(response.data)
         self.assertEqual(response_data, {

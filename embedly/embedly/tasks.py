@@ -1,3 +1,9 @@
+from embedly.app import get_celery
+
+celery = get_celery()
+
+
+@celery.task()
 def fetch_remote_url_data(urls, start_time, redis_client=None):
     import time
     from embedly.app import get_extractor

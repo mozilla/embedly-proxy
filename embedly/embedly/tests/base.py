@@ -116,10 +116,12 @@ class AppTest(TestCase):
         self.mock_redis.get.return_value = None
         self.mock_redis.set.return_value = None
 
-        self.mock_job_queue = mock.Mock()
+        mock_fetch_task_patcher = mock.patch(
+            'embedly.extract.fetch_remote_url_data')
+        self.mock_fetch_task = mock_fetch_task_patcher.start()
+        self.addCleanup(mock_fetch_task_patcher.stop)
 
-        self.app = create_app(
-            redis_client=self.mock_redis, job_queue=self.mock_job_queue)
+        self.app = create_app(redis_client=self.mock_redis)
         self.app.config['DEBUG'] = True
         self.app.config['TESTING'] = True
 

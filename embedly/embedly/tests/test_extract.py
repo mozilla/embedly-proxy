@@ -27,7 +27,6 @@ class ExtractorTest(AppTest):
             10,
             10,
             [],
-            self.mock_job_queue,
             10,
             self.app.config['URL_BATCH_SIZE'],
         )
@@ -72,7 +71,7 @@ class TestExtractorExtractURLsAsync(ExtractorTest):
         self.assertEqual(self.mock_requests_get.call_count, 0)
 
         self.assertEqual(
-            self.mock_job_queue.enqueue.call_count,
+            self.mock_fetch_task.delay.call_count,
             (len(uncached_urls)/self.app.config['URL_BATCH_SIZE']) + 1,
         )
 
@@ -98,9 +97,9 @@ class TestExtractorExtractURLsAsync(ExtractorTest):
         self.assertEqual(self.mock_redis.get.call_count, 2)
         self.assertEqual(self.mock_redis.set.call_count, 2)
         self.assertEqual(self.mock_requests_get.call_count, 0)
-        self.assertEqual(self.mock_job_queue.enqueue.call_count, 1)
+        self.assertEqual(self.mock_fetch_task.delay.call_count, 1)
         self.assertEqual(
-            self.mock_job_queue.enqueue.call_args[0][1], first_urls)
+            self.mock_fetch_task.delay.call_args[0][0], first_urls)
 
         second_urls = ['http://www.example.com/2', 'http://www.example.com/3']
 
@@ -110,9 +109,9 @@ class TestExtractorExtractURLsAsync(ExtractorTest):
         self.assertEqual(self.mock_redis.get.call_count, 4)
         self.assertEqual(self.mock_redis.set.call_count, 3)
         self.assertEqual(self.mock_requests_get.call_count, 0)
-        self.assertEqual(self.mock_job_queue.enqueue.call_count, 2)
+        self.assertEqual(self.mock_fetch_task.delay.call_count, 2)
         self.assertEqual(
-            self.mock_job_queue.enqueue.call_args[0][1],
+            self.mock_fetch_task.delay.call_args[0][0],
             ['http://www.example.com/3'],
         )
 
