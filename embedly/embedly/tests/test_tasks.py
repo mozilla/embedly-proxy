@@ -3,7 +3,7 @@ import json
 
 import requests
 
-from embedly.extract import IN_JOB_QUEUE, URLExtractorException
+from embedly.extract import IN_JOB_QUEUE, URLExtractor
 from embedly.tasks import fetch_remote_url_data
 from embedly.tests.test_extract import ExtractorTest
 
@@ -58,7 +58,7 @@ class TestFetchRemoteUrlDataTask(ExtractorTest):
         self.mock_redis.delete.side_effect = mock_delete
         self.mock_requests_get.side_effect = requests.RequestException
 
-        with self.assertRaises(URLExtractorException):
+        with self.assertRaises(URLExtractor.URLExtractorException):
             fetch_remote_url_data(
                 self.sample_urls, time.time(), redis_client=self.mock_redis)
 
