@@ -5,7 +5,7 @@ import json
 import redis
 import requests
 
-from embedly.extract import URLExtractor, URLExtractorException
+from embedly.extract import URLExtractor
 from embedly.tests.base import AppTest
 
 
@@ -126,13 +126,13 @@ class TestExtractorGetCachedURLs(ExtractorTest):
 
         self.mock_redis.get.side_effect = mocked_lookup
 
-        with self.assertRaises(URLExtractorException):
+        with self.assertRaises(URLExtractor.URLExtractorException):
             self.extractor.get_cached_urls(self.sample_urls)
 
     def test_redis_get_error_raises_exception(self):
         self.mock_redis.get.side_effect = redis.RedisError
 
-        with self.assertRaises(URLExtractorException):
+        with self.assertRaises(URLExtractor.URLExtractorException):
             self.extractor.get_cached_urls(self.sample_urls)
 
     def test_multiple_urls_queried_from_cache(self):
@@ -188,7 +188,7 @@ class TestExtractorGetRemoteURLs(ExtractorTest):
         self.mock_requests_get.return_value = self.get_mock_response(
             content=json.dumps(embedly_data))
 
-        with self.assertRaises(URLExtractorException):
+        with self.assertRaises(URLExtractor.URLExtractorException):
             self.extractor.get_remote_urls(self.sample_urls)
 
         self.assertEqual(self.mock_requests_get.call_count, 1)
@@ -197,14 +197,14 @@ class TestExtractorGetRemoteURLs(ExtractorTest):
     def test_request_error_raises_exception(self):
         self.mock_requests_get.side_effect = requests.RequestException()
 
-        with self.assertRaises(URLExtractorException):
+        with self.assertRaises(URLExtractor.URLExtractorException):
             self.extractor.get_remote_urls(self.sample_urls)
 
     def test_invalid_json_from_embedly_raises_exception(self):
         self.mock_requests_get.return_value = self.get_mock_response(
             content='\invalid json')
 
-        with self.assertRaises(URLExtractorException):
+        with self.assertRaises(URLExtractor.URLExtractorException):
             self.extractor.get_remote_urls(self.sample_urls)
 
     def test_error_from_embedly_raises_exception(self):
@@ -217,7 +217,7 @@ class TestExtractorGetRemoteURLs(ExtractorTest):
             })
         )
 
-        with self.assertRaises(URLExtractorException):
+        with self.assertRaises(URLExtractor.URLExtractorException):
             self.extractor.get_remote_urls(self.sample_urls)
 
     def test_invalid_data_not_included_in_results(self):
