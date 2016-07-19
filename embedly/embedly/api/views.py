@@ -54,7 +54,7 @@ def extract_urls_v2():
             mimetype='application/json',
         ))
 
-    if request.content_type != 'application/json':
+    if 'application/json' not in request.content_type:
         fail(400, 'The Content-Type header must be set to application/json')
 
     try:
