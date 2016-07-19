@@ -8,21 +8,27 @@ from rq import Queue
 
 import api.views
 from extract import URLExtractor
+from pocket import PocketClient
 
 
 def get_config():
     return {
-        'MAXIMUM_POST_URLS': 25,
-        'URL_BATCH_SIZE': 5,
-        'JOB_TTL': 300,
-        'EMBEDLY_URL': 'https://api.embedly.com/1/extract',
+        'BLOCKED_DOMAINS': ['embedly.com'],
         'EMBEDLY_KEY': os.environ.get('EMBEDLY_KEY', None),
+        'EMBEDLY_URL': 'https://api.embedly.com/1/extract',
+        'JOB_TTL': 300,
+        'MAXIMUM_POST_URLS': 25,
+        'POCKET_URL': (
+            'https://getpocket.com/v3/firefox/'
+            'global-recs?consumer_key={pocket_key}').format(
+                pocket_key=os.environ.get('POCKET_KEY', None)),
+        'POCKET_DATA_TIMEOUT': 10 * 60,  # 10 minutes timeout
         'REDIS_DATA_TIMEOUT': 24 * 60 * 60,  # 24 hour timeout
         'REDIS_JOB_TIMEOUT': 60 * 60,  # 1 hour timeout
         'REDIS_URL': os.environ.get('REDIS_URL', None),
         'SENTRY_DSN': os.environ.get('SENTRY_DSN', ''),
         'SENTRY_PROCESSORS': ('raven.processors.RemovePostDataProcessor',),
-        'BLOCKED_DOMAINS': ['embedly.com'],
+        'URL_BATCH_SIZE': 5,
     }
 
 
@@ -54,6 +60,18 @@ def get_extractor(redis_client=None, job_queue=None):
     )
 
 
+def get_pocket_client(redis_client=None, job_queue=None):
+    config = get_config()
+
+    return PocketClient(
+        config['POCKET_URL'],
+        redis_client or get_redis_client(),
+        config['POCKET_DATA_TIMEOUT'],
+        job_queue or get_job_queue(),
+        config['JOB_TTL'],
+    )
+
+
 def create_app(redis_client=None, job_queue=None):
     config = get_config()
 
@@ -68,6 +86,8 @@ def create_app(redis_client=None, job_queue=None):
     app.job_queue = job_queue or get_job_queue(app.redis_client)
 
     app.extractor = get_extractor(app.redis_client, app.job_queue)
+
+    app.pocket_client = get_pocket_client(app.redis_client, app.job_queue)
 
     app.config['VERSION_INFO'] = ''
     if os.path.exists('./version.json'):  # pragma: no cover

@@ -1,10 +1,12 @@
 import json
 import random
+import time
 
 import redis
 
 from embedly.tests.base import AppTest
 from embedly.tests.test_extract import ExtractorTest
+from embedly.tests.test_pocket import PocketClientTest
 
 
 class TestHeartbeat(AppTest):
@@ -213,3 +215,51 @@ class TestExtractV2(ExtractorTest):
             'urls': {url: self.get_mock_url_data(url) for url in cached_urls},
             'error': '',
         })
+
+
+class TestPocket(PocketClientTest):
+
+    def test_uncached_recommendations_returns_empty_queues_job(self):
+        response = self.client.get('/v2/recommendations')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.mock_redis.get.call_count, 1)
+        self.assertEqual(self.mock_redis.set.call_count, 1)
+        self.assertEqual(self.mock_job_queue.enqueue.call_count, 1)
+
+        response_data = json.loads(response.data)
+        self.assertEqual(response_data, {
+            'urls': [],
+            'error': '',
+        })
+
+    def test_cached_recommendations_returned(self):
+        recommendation_data = [{
+            'url': 'http://www.example.com/recommended',
+            'timestamp': time.time(),
+        }, {
+            'url': 'http://www.example.com/otherrecommended',
+            'timestamp': time.time(),
+        }]
+
+        self.mock_redis.get.return_value = json.dumps(recommendation_data)
+
+        response = self.client.get('/v2/recommendations')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.mock_redis.get.call_count, 1)
+        self.assertEqual(self.mock_redis.set.call_count, 0)
+        self.assertEqual(self.mock_job_queue.enqueue.call_count, 0)
+
+        response_data = json.loads(response.data)
+        self.assertEqual(response_data, {
+            'urls': recommendation_data,
+            'error': '',
+        })
+
+    def test_pocket_exception_returns_500(self):
+        self.mock_redis.get.side_effect = redis.RedisError()
+
+        response = self.client.get('/v2/recommendations')
+
+        self.assertEqual(response.status_code, 500)
