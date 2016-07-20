@@ -66,8 +66,11 @@ class PocketClient(object):
             })
 
         try:
-            self.redis_client.set(self.redis_key, json.dumps(recommended_urls))
-            self.redis_client.expire(self.redis_key, self.redis_data_timeout)
+            self.redis_client.setex(
+                self.redis_key,
+                self.redis_data_timeout,
+                json.dumps(recommended_urls),
+            )
         except redis.RedisError:
             raise self.PocketException('Unable to write to redis.')
 
@@ -98,9 +101,8 @@ class PocketClient(object):
             statsd_client.incr('request_recommended_job_create')
 
             try:
-                self.redis_client.set(
-                    self.redis_key, self.redis_in_flight_value)
-                self.redis_client.expire(self.redis_key, self.job_ttl)
+                self.redis_client.setex(
+                    self.redis_key, self.job_ttl, self.redis_in_flight_value)
             except redis.RedisError:
                 raise self.PocketException('Unable to write to redis.')
 

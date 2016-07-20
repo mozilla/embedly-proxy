@@ -114,7 +114,7 @@ class AppTest(TestCase):
 
         self.mock_redis = mock.Mock()
         self.mock_redis.get.return_value = None
-        self.mock_redis.set.return_value = None
+        self.mock_redis.setex.return_value = None
 
         self.mock_job_queue = mock.Mock()
 
