@@ -71,8 +71,7 @@ class TestPocketClientFetchRecommendedUrls(PocketClientTest):
         recommended_urls = self.pocket_client.fetch_recommended_urls()
 
         self.assertEqual(recommended_urls, self.sample_recommended_urls)
-        self.assertEqual(self.mock_redis.set.call_count, 1)
-        self.assertEqual(self.mock_redis.expire.call_count, 1)
+        self.assertEqual(self.mock_redis.setex.call_count, 1)
 
     def test_pocket_client_raises_exception_if_request_fails(self):
         self.mock_requests_get.side_effect = requests.RequestException
@@ -104,7 +103,7 @@ class TestPocketClientFetchRecommendedUrls(PocketClientTest):
         self.mock_requests_get.return_value = self.get_mock_response(
             content=json.dumps(self.sample_pocket_data))
 
-        self.mock_redis.set.side_effect = redis.RedisError
+        self.mock_redis.setex.side_effect = redis.RedisError
 
         with self.assertRaises(self.pocket_client.PocketException):
             self.pocket_client.fetch_recommended_urls()
@@ -150,7 +149,7 @@ class TestPocketClientGetRecommendedUrls(PocketClientTest):
             self.pocket_client.get_recommended_urls()
 
     def test_pocket_client_raises_exception_if_unable_to_write_to_redis(self):
-        self.mock_redis.set.side_effect = redis.RedisError
+        self.mock_redis.setex.side_effect = redis.RedisError
 
         with self.assertRaises(PocketClient.PocketException):
             self.pocket_client.get_recommended_urls()

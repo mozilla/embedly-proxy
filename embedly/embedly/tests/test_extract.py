@@ -68,7 +68,7 @@ class TestExtractorExtractURLsAsync(ExtractorTest):
         cached_url_data = self.extractor.extract_urls_async(sample_urls)
 
         self.assertEqual(self.mock_redis.get.call_count, len(sample_urls))
-        self.assertEqual(self.mock_redis.set.call_count, len(uncached_urls))
+        self.assertEqual(self.mock_redis.setex.call_count, len(uncached_urls))
         self.assertEqual(self.mock_requests_get.call_count, 0)
 
         self.assertEqual(
@@ -81,14 +81,14 @@ class TestExtractorExtractURLsAsync(ExtractorTest):
     def test_url_queried_multiple_times_starts_only_one_job(self):
         mock_cache = {}
 
-        def mock_set(key, value, *args, **kwargs):
+        def mock_setex(key, time, value, *args, **kwargs):
             mock_cache[key] = value
 
         def mock_get(key):
             return mock_cache[key] if key in mock_cache else None
 
         self.mock_redis.get.side_effect = mock_get
-        self.mock_redis.set.side_effect = mock_set
+        self.mock_redis.setex.side_effect = mock_setex
 
         first_urls = ['http://www.example.com/1', 'http://www.example.com/2']
 
@@ -96,7 +96,7 @@ class TestExtractorExtractURLsAsync(ExtractorTest):
 
         self.assertEqual(cached_url_data, {})
         self.assertEqual(self.mock_redis.get.call_count, 2)
-        self.assertEqual(self.mock_redis.set.call_count, 2)
+        self.assertEqual(self.mock_redis.setex.call_count, 2)
         self.assertEqual(self.mock_requests_get.call_count, 0)
         self.assertEqual(self.mock_job_queue.enqueue.call_count, 1)
         self.assertEqual(
@@ -108,7 +108,7 @@ class TestExtractorExtractURLsAsync(ExtractorTest):
 
         self.assertEqual(cached_url_data, {})
         self.assertEqual(self.mock_redis.get.call_count, 4)
-        self.assertEqual(self.mock_redis.set.call_count, 3)
+        self.assertEqual(self.mock_redis.setex.call_count, 3)
         self.assertEqual(self.mock_requests_get.call_count, 0)
         self.assertEqual(self.mock_job_queue.enqueue.call_count, 2)
         self.assertEqual(
@@ -153,7 +153,7 @@ class TestExtractorGetCachedURLs(ExtractorTest):
             self.sample_urls + [missing_url])
 
         self.assertEqual(self.mock_redis.get.call_count, 3)
-        self.assertEqual(self.mock_redis.set.call_count, 0)
+        self.assertEqual(self.mock_redis.setex.call_count, 0)
         self.assertEqual(self.mock_requests_get.call_count, 0)
 
         expected_response = {
@@ -175,13 +175,13 @@ class TestExtractorGetRemoteURLs(ExtractorTest):
         extracted_urls = self.extractor.get_remote_urls(self.sample_urls)
 
         self.assertEqual(self.mock_redis.get.call_count, 0)
-        self.assertEqual(self.mock_redis.set.call_count, 2)
+        self.assertEqual(self.mock_redis.setex.call_count, 2)
         self.assertEqual(self.mock_requests_get.call_count, 1)
 
         self.assertEqual(extracted_urls, self.expected_response)
 
     def test_redis_get_error_raises_exception(self):
-        self.mock_redis.set.side_effect = redis.RedisError
+        self.mock_redis.setex.side_effect = redis.RedisError
 
         embedly_data = self.get_mock_urls_data(self.sample_urls)
 
@@ -192,7 +192,7 @@ class TestExtractorGetRemoteURLs(ExtractorTest):
             self.extractor.get_remote_urls(self.sample_urls)
 
         self.assertEqual(self.mock_requests_get.call_count, 1)
-        self.assertEqual(self.mock_redis.set.call_count, 1)
+        self.assertEqual(self.mock_redis.setex.call_count, 1)
 
     def test_request_error_raises_exception(self):
         self.mock_requests_get.side_effect = requests.RequestException()
@@ -242,7 +242,7 @@ class TestExtractorGetRemoteURLs(ExtractorTest):
         ])
 
         self.assertEqual(self.mock_redis.get.call_count, 0)
-        self.assertEqual(self.mock_redis.set.call_count, 1)
+        self.assertEqual(self.mock_redis.setex.call_count, 1)
         self.assertEqual(self.mock_requests_get.call_count, 1)
 
         self.assertIn(valid_url, extracted_urls)

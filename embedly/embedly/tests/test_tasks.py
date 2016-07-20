@@ -21,7 +21,7 @@ class TestFetchRemoteUrlDataTask(ExtractorTest):
             return mock_cache[key] if key in mock_cache else None
 
         self.mock_redis.get.side_effect = mock_get
-        self.mock_redis.set.side_effect = mock_set
+        self.mock_redis.setex.side_effect = mock_set
 
         embedly_data = self.get_mock_urls_data(self.sample_urls)
 
@@ -34,7 +34,8 @@ class TestFetchRemoteUrlDataTask(ExtractorTest):
         self.assertEqual(self.mock_requests_get.call_count, 1)
         self.assertEqual(self.mock_redis.delete.call_count, 1)
         self.assertEqual(self.mock_redis.get.call_count, 0)
-        self.assertEqual(self.mock_redis.set.call_count, len(self.sample_urls))
+        self.assertEqual(
+            self.mock_redis.setex.call_count, len(self.sample_urls))
         self.assertEqual(mock_cache.keys(), self.sample_urls)
         self.assertNotIn(IN_JOB_QUEUE, mock_cache.values())
 
@@ -55,7 +56,7 @@ class TestFetchRemoteUrlDataTask(ExtractorTest):
                 del mock_cache[arg]
 
         self.mock_redis.get.side_effect = mock_get
-        self.mock_redis.set.side_effect = mock_set
+        self.mock_redis.setex.side_effect = mock_set
         self.mock_redis.delete.side_effect = mock_delete
         self.mock_requests_get.side_effect = requests.RequestException
 
@@ -66,7 +67,7 @@ class TestFetchRemoteUrlDataTask(ExtractorTest):
         self.assertEqual(self.mock_requests_get.call_count, 1)
         self.assertEqual(self.mock_redis.delete.call_count, 1)
         self.assertEqual(self.mock_redis.get.call_count, 0)
-        self.assertEqual(self.mock_redis.set.call_count, 0)
+        self.assertEqual(self.mock_redis.setex.call_count, 0)
         self.assertEqual(mock_cache.keys(), [existing_url])
 
 
@@ -80,4 +81,4 @@ class TestFetchRecommendedUrlsTask(PocketClientTest):
 
         self.assertEqual(self.mock_requests_get.call_count, 1)
         self.assertEqual(self.mock_redis.get.call_count, 0)
-        self.assertEqual(self.mock_redis.set.call_count, 1)
+        self.assertEqual(self.mock_redis.setex.call_count, 1)

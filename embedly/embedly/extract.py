@@ -63,8 +63,7 @@ class URLExtractor(object):
         cache_key = self._get_cache_key(url)
 
         try:
-            self.redis_client.set(cache_key, json.dumps(data))
-            self.redis_client.expire(cache_key, timeout)
+            self.redis_client.setex(cache_key, timeout, json.dumps(data))
             statsd_client.incr('redis_cache_write')
         except redis.RedisError:
             raise self.URLExtractorException('Unable to write to redis.')

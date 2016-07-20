@@ -136,7 +136,7 @@ class TestExtractV2(ExtractorTest):
         self.assertEqual(response.status_code, 200)
 
         self.assertEqual(self.mock_redis.get.call_count, len(self.sample_urls))
-        self.assertEqual(self.mock_redis.set.call_count, 0)
+        self.assertEqual(self.mock_redis.setex.call_count, 0)
         self.assertEqual(self.mock_requests_get.call_count, 0)
 
         response_data = json.loads(response.data)
@@ -171,7 +171,7 @@ class TestExtractV2(ExtractorTest):
         self.assertEqual(response.status_code, 200)
 
         self.assertEqual(self.mock_redis.get.call_count, len(urls))
-        self.assertEqual(self.mock_redis.set.call_count, 4)
+        self.assertEqual(self.mock_redis.setex.call_count, 4)
         self.assertEqual(self.mock_requests_get.call_count, 0)
         self.assertEqual(
             self.mock_job_queue.enqueue.call_count,
@@ -206,7 +206,7 @@ class TestExtractV2(ExtractorTest):
         self.assertEqual(response.status_code, 200)
 
         self.assertEqual(self.mock_redis.get.call_count, len(self.sample_urls))
-        self.assertEqual(self.mock_redis.set.call_count, 0)
+        self.assertEqual(self.mock_redis.setex.call_count, 0)
         self.assertEqual(self.mock_requests_get.call_count, 0)
         self.assertEqual(self.mock_job_queue.enqueue.call_count, 1)
 
@@ -224,7 +224,7 @@ class TestPocket(PocketClientTest):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.mock_redis.get.call_count, 1)
-        self.assertEqual(self.mock_redis.set.call_count, 1)
+        self.assertEqual(self.mock_redis.setex.call_count, 1)
         self.assertEqual(self.mock_job_queue.enqueue.call_count, 1)
 
         response_data = json.loads(response.data)
@@ -248,7 +248,7 @@ class TestPocket(PocketClientTest):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.mock_redis.get.call_count, 1)
-        self.assertEqual(self.mock_redis.set.call_count, 0)
+        self.assertEqual(self.mock_redis.setex.call_count, 0)
         self.assertEqual(self.mock_job_queue.enqueue.call_count, 0)
 
         response_data = json.loads(response.data)
