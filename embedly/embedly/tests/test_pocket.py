@@ -37,7 +37,7 @@ class PocketClientTest(AppTest):
                 'published_timestamp': str(int(time.time())),
                 'sort_id': 1,
                 'title': 'Recommended Content',
-                'url': 'http://donotuse.thisurl.com/',
+                'url': 'http://example.com/?id=123',
             }, {
                 'dedupe_url': 'http://www.example.com/recommended/other/',
                 'domain': 'example.com',
@@ -46,7 +46,7 @@ class PocketClientTest(AppTest):
                 'published_timestamp': str(int(time.time())),
                 'sort_id': 2,
                 'title': 'Recommended Other Content',
-                'url': 'http://donotuse.thisurl.com/either/',
+                'url': 'http://example.com/?id=456',
             }],
         }
 
@@ -58,6 +58,7 @@ class PocketClientTest(AppTest):
     def get_pocket_content(self, url_data):
         return {
             'url': url_data['dedupe_url'],
+            'pocket_url': url_data['url'],
             'timestamp': int(url_data['published_timestamp']) * 1000,
         }
 
