@@ -59,6 +59,7 @@ class PocketClient(object):
         for recommended_url in pocket_data['list']:
             recommended_urls.append({
               'url': recommended_url['dedupe_url'],
+              'pocket_url': recommended_url['url'],
               'timestamp': int(recommended_url['published_timestamp']) * 1000,
             })
 
