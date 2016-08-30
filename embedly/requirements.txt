@@ -1,6 +1,8 @@
 Flask-Cors==2.1.2
 Flask==0.10.1
 blinker==1.4
+coverage==4.0.3
+flake8==2.5.4
 gevent==1.0.2
 gunicorn==19.4.5
 marshmallow==2.6.0
