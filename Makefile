@@ -17,8 +17,8 @@ stop_local: stop_redis stop_nginx
 build:
 	sh scripts/build_embedly.sh
 
-test: compose_build
-	docker-compose run embedly sh -c "pip install coverage flake8 && flake8 . && nosetests embedly/ --with-coverage --cover-package=embedly --cover-min-percentage=100"
+test: build 
+	docker run -u root -t -i app:build sh -c "pip install coverage flake8 && flake8 . && nosetests embedly/ --with-coverage --cover-package=embedly --cover-min-percentage=100"
 
 dev: build start_local
 	docker run --net=host --env-file=.env -e REDIS_URL=localhost -i -t app:build sh -c 'PYTHONPATH=. python embedly/dev_server.py'
