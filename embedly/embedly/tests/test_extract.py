@@ -226,7 +226,7 @@ class TestExtractorGetRemoteURLs(ExtractorTest):
 
         invalid_url = 'https://example.com/invalid'
         invalid_url_data = self.get_mock_url_data(invalid_url)
-        invalid_url_data['cache_age'] = 'invalid integer'
+        invalid_url_data['url'] = 'invalid url'
 
         embedly_data = [
             valid_url_data,
