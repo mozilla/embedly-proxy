@@ -10,7 +10,7 @@ embedly:
   restart: never 
 
 worker:
-  build: ./embedly
+  image: app:build
   env_file: .env
   links:
     - redis
