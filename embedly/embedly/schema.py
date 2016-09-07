@@ -49,4 +49,13 @@ class EmbedlyURLSchema(Schema):
             if get_domain(image.get('url', '')) not in disallowed_domains
         ]
 
+        def cmp_images(img_a, img_b):
+            return cmp(
+                img_b['width'] * img_b['height'],
+                img_a['width'] * img_a['height'],
+            )
+
+        sorted_images = sorted(validated.data['images'], cmp=cmp_images)
+        validated.data['images'] = sorted_images[:1]
+
         return validated
