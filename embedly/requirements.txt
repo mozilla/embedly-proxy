@@ -14,3 +14,5 @@ redis==2.10.5
 requests==2.9.1
 rq==0.6.0
 statsd==3.2.1
+ipdb==0.8.2
+ipython==4.1.1
