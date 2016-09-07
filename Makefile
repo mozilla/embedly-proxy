@@ -1,8 +1,8 @@
 build:
 	sh scripts/build_embedly.sh
 
-test: build 
-	docker run -u root -t -i app:build sh -c "flake8 . && nosetests embedly/ --with-coverage --cover-package=embedly --cover-min-percentage=100"
+test: compose_build 
+	docker run -u root -t -i app:build sh -c "flake8 . && nosetests embedly/ --nocapture --with-coverage --cover-package=embedly --cover-min-percentage=100"
 
 compose_build: build
 	docker-compose build
