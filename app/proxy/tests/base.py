@@ -32,7 +32,7 @@ class AppTest(TestCase):
         super(AppTest, self).setUp()
 
         mock_requests_get_patcher = mock.patch(
-            'proxy.extract.requests.get')
+            'proxy.metadata.requests.get')
         self.mock_requests_get = mock_requests_get_patcher.start()
         self.addCleanup(mock_requests_get_patcher.stop)
 

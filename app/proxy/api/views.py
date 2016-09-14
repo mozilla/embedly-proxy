@@ -86,8 +86,9 @@ def extract_urls_v2():
         fail(response_data, 400, 'Do not send empty or null URLs.')
 
     try:
-        response_data['urls'] = current_app.extractor.extract_urls_async(urls)
-    except current_app.extractor.URLExtractorException, e:
+        response_data['urls'] = (
+            current_app.metadata_client.extract_urls_async(urls))
+    except current_app.metadata_client.MetadataClientException, e:
         fail(response_data, 500, e.message)
 
     return Response(

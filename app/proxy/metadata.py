@@ -19,9 +19,9 @@ def group_by(items, size):
         items = items[size:]
 
 
-class URLExtractor(object):
+class MetadataClient(object):
 
-    class URLExtractorException(Exception):
+    class MetadataClientException(Exception):
         pass
 
     def __init__(self, embedly_url, embedly_key, redis_client,
@@ -46,14 +46,14 @@ class URLExtractor(object):
         try:
             cached_data = self.redis_client.get(cache_key)
         except redis.RedisError:
-            raise self.URLExtractorException('Unable to read from redis.')
+            raise self.MetadataClientException('Unable to read from redis.')
 
         if cached_data is not None:
             statsd_client.incr('redis_cache_hit')
             try:
                 return json.loads(cached_data)
             except ValueError:
-                raise self.URLExtractorException(
+                raise self.MetadataClientException(
                     ('Unable to load JSON data '
                      'from cache for key: {key}').format(key=cache_key))
         else:
@@ -66,7 +66,7 @@ class URLExtractor(object):
             self.redis_client.setex(cache_key, timeout, json.dumps(data))
             statsd_client.incr('redis_cache_write')
         except redis.RedisError:
-            raise self.URLExtractorException('Unable to write to redis.')
+            raise self.MetadataClientException('Unable to write to redis.')
 
     def _build_embedly_url(self, urls):
         params = '&'.join([
@@ -90,13 +90,13 @@ class URLExtractor(object):
             try:
                 response = requests.get(request_url)
             except requests.RequestException, e:
-                raise self.URLExtractorException(
+                raise self.MetadataClientException(
                     ('Unable to communicate '
                      'with embedly: {error}').format(error=e))
 
         if response.status_code != 200:
             statsd_client.incr('embedly_request_failure')
-            raise self.URLExtractorException(
+            raise self.MetadataClientException(
                 ('Error status returned from '
                  'embedly: {error_code} {error_message}').format(
                     error_code=response.status_code,
@@ -112,7 +112,7 @@ class URLExtractor(object):
                 embedly_data = json.loads(response.content)
             except (TypeError, ValueError), e:
                 statsd_client.incr('embedly_parse_failure')
-                raise self.URLExtractorException(
+                raise self.MetadataClientException(
                     ('Unable to parse the JSON '
                      'response from proxy: {error}').format(error=e))
 

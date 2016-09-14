@@ -5,11 +5,11 @@ import json
 import redis
 import requests
 
-from proxy.extract import URLExtractor
+from proxy.metadata import MetadataClient
 from proxy.tests.base import AppTest
 
 
-class ExtractorTest(AppTest):
+class MetadataClientTest(AppTest):
 
     def get_response_data(self, urls):
         return {
@@ -18,9 +18,9 @@ class ExtractorTest(AppTest):
         }
 
     def setUp(self):
-        super(ExtractorTest, self).setUp()
+        super(MetadataClientTest, self).setUp()
 
-        self.extractor = URLExtractor(
+        self.metadata_client = MetadataClient(
             '',
             '',
             self.mock_redis,
@@ -40,7 +40,7 @@ class ExtractorTest(AppTest):
         self.expected_response = self.get_response_data(self.sample_urls)
 
 
-class TestExtractorExtractURLsAsync(ExtractorTest):
+class TestMetadataClientExtractURLsAsync(MetadataClientTest):
 
     def test_multiple_urls_queried_with_cache_hit_and_jobs_started(self):
         sample_urls = [
@@ -50,7 +50,7 @@ class TestExtractorExtractURLsAsync(ExtractorTest):
 
         def get_mocked_cache_lookup(url, cached_data):
             def mocked_lookup(key):
-                if key == self.extractor._get_cache_key(url):
+                if key == self.metadata_client._get_cache_key(url):
                     return json.dumps(cached_data)
 
             return mocked_lookup
@@ -65,7 +65,7 @@ class TestExtractorExtractURLsAsync(ExtractorTest):
         self.mock_requests_get.return_value = self.get_mock_response(
             content=json.dumps(embedly_data))
 
-        cached_url_data = self.extractor.extract_urls_async(sample_urls)
+        cached_url_data = self.metadata_client.extract_urls_async(sample_urls)
 
         self.assertEqual(self.mock_redis.get.call_count, len(sample_urls))
         self.assertEqual(self.mock_redis.setex.call_count, len(uncached_urls))
@@ -92,7 +92,7 @@ class TestExtractorExtractURLsAsync(ExtractorTest):
 
         first_urls = ['http://www.example.com/1', 'http://www.example.com/2']
 
-        cached_url_data = self.extractor.extract_urls_async(first_urls)
+        cached_url_data = self.metadata_client.extract_urls_async(first_urls)
 
         self.assertEqual(cached_url_data, {})
         self.assertEqual(self.mock_redis.get.call_count, 2)
@@ -104,7 +104,7 @@ class TestExtractorExtractURLsAsync(ExtractorTest):
 
         second_urls = ['http://www.example.com/2', 'http://www.example.com/3']
 
-        cached_url_data = self.extractor.extract_urls_async(second_urls)
+        cached_url_data = self.metadata_client.extract_urls_async(second_urls)
 
         self.assertEqual(cached_url_data, {})
         self.assertEqual(self.mock_redis.get.call_count, 4)
@@ -117,7 +117,7 @@ class TestExtractorExtractURLsAsync(ExtractorTest):
         )
 
 
-class TestExtractorGetCachedURLs(ExtractorTest):
+class TestMetadataClientGetCachedURLs(MetadataClientTest):
 
     def test_invalid_json_in_cache_raises_exception(self):
 
@@ -126,14 +126,14 @@ class TestExtractorGetCachedURLs(ExtractorTest):
 
         self.mock_redis.get.side_effect = mocked_lookup
 
-        with self.assertRaises(URLExtractor.URLExtractorException):
-            self.extractor.get_cached_urls(self.sample_urls)
+        with self.assertRaises(MetadataClient.MetadataClientException):
+            self.metadata_client.get_cached_urls(self.sample_urls)
 
     def test_redis_get_error_raises_exception(self):
         self.mock_redis.get.side_effect = redis.RedisError
 
-        with self.assertRaises(URLExtractor.URLExtractorException):
-            self.extractor.get_cached_urls(self.sample_urls)
+        with self.assertRaises(MetadataClient.MetadataClientException):
+            self.metadata_client.get_cached_urls(self.sample_urls)
 
     def test_multiple_urls_queried_from_cache(self):
 
@@ -149,7 +149,7 @@ class TestExtractorGetCachedURLs(ExtractorTest):
         # a url with no cache data
         missing_url = 'http://example.com/notcached'
 
-        extracted_urls = self.extractor.get_cached_urls(
+        extracted_urls = self.metadata_client.get_cached_urls(
             self.sample_urls + [missing_url])
 
         self.assertEqual(self.mock_redis.get.call_count, 3)
@@ -157,14 +157,15 @@ class TestExtractorGetCachedURLs(ExtractorTest):
         self.assertEqual(self.mock_requests_get.call_count, 0)
 
         expected_response = {
-            url: self.get_mock_url_data(self.extractor._get_cache_key(url))
+            url: self.get_mock_url_data(
+                self.metadata_client._get_cache_key(url))
             for url in self.sample_urls
         }
 
         self.assertEqual(extracted_urls, expected_response)
 
 
-class TestExtractorGetRemoteURLs(ExtractorTest):
+class TestMetadataClientGetRemoteURLs(MetadataClientTest):
 
     def test_multiple_urls_queried_from_embedly(self):
         embedly_data = self.get_mock_urls_data(self.sample_urls)
@@ -172,7 +173,7 @@ class TestExtractorGetRemoteURLs(ExtractorTest):
         self.mock_requests_get.return_value = self.get_mock_response(
             content=json.dumps(embedly_data))
 
-        extracted_urls = self.extractor.get_remote_urls(self.sample_urls)
+        extracted_urls = self.metadata_client.get_remote_urls(self.sample_urls)
 
         self.assertEqual(self.mock_redis.get.call_count, 0)
         self.assertEqual(self.mock_redis.setex.call_count, 2)
@@ -188,8 +189,8 @@ class TestExtractorGetRemoteURLs(ExtractorTest):
         self.mock_requests_get.return_value = self.get_mock_response(
             content=json.dumps(embedly_data))
 
-        with self.assertRaises(URLExtractor.URLExtractorException):
-            self.extractor.get_remote_urls(self.sample_urls)
+        with self.assertRaises(MetadataClient.MetadataClientException):
+            self.metadata_client.get_remote_urls(self.sample_urls)
 
         self.assertEqual(self.mock_requests_get.call_count, 1)
         self.assertEqual(self.mock_redis.setex.call_count, 1)
@@ -197,15 +198,15 @@ class TestExtractorGetRemoteURLs(ExtractorTest):
     def test_request_error_raises_exception(self):
         self.mock_requests_get.side_effect = requests.RequestException()
 
-        with self.assertRaises(URLExtractor.URLExtractorException):
-            self.extractor.get_remote_urls(self.sample_urls)
+        with self.assertRaises(MetadataClient.MetadataClientException):
+            self.metadata_client.get_remote_urls(self.sample_urls)
 
     def test_invalid_json_from_embedly_raises_exception(self):
         self.mock_requests_get.return_value = self.get_mock_response(
             content='\invalid json')
 
-        with self.assertRaises(URLExtractor.URLExtractorException):
-            self.extractor.get_remote_urls(self.sample_urls)
+        with self.assertRaises(MetadataClient.MetadataClientException):
+            self.metadata_client.get_remote_urls(self.sample_urls)
 
     def test_error_from_embedly_raises_exception(self):
         self.mock_requests_get.return_value = self.get_mock_response(
@@ -217,8 +218,8 @@ class TestExtractorGetRemoteURLs(ExtractorTest):
             })
         )
 
-        with self.assertRaises(URLExtractor.URLExtractorException):
-            self.extractor.get_remote_urls(self.sample_urls)
+        with self.assertRaises(MetadataClient.MetadataClientException):
+            self.metadata_client.get_remote_urls(self.sample_urls)
 
     def test_invalid_data_not_included_in_results(self):
         valid_url = 'https://example.com/valid'
@@ -236,7 +237,7 @@ class TestExtractorGetRemoteURLs(ExtractorTest):
         self.mock_requests_get.return_value = self.get_mock_response(
             content=json.dumps(embedly_data))
 
-        extracted_urls = self.extractor.get_remote_urls([
+        extracted_urls = self.metadata_client.get_remote_urls([
             valid_url,
             invalid_url,
         ])
@@ -265,7 +266,7 @@ class TestExtractorGetRemoteURLs(ExtractorTest):
         self.mock_requests_get.return_value = self.get_mock_response(
             content=json.dumps(embedly_data))
 
-        extracted_urls = self.extractor.get_remote_urls([
+        extracted_urls = self.metadata_client.get_remote_urls([
             unmodified_url,
             original_modified_url,
         ])

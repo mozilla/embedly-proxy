@@ -3,13 +3,13 @@ import json
 
 import requests
 
-from proxy.extract import IN_JOB_QUEUE, URLExtractor
+from proxy.metadata import IN_JOB_QUEUE, MetadataClient
 from proxy.tasks import fetch_remote_url_data, fetch_recommended_urls
-from proxy.tests.test_extract import ExtractorTest
+from proxy.tests.test_metadata import MetadataClientTest
 from proxy.tests.test_pocket import PocketClientTest
 
 
-class TestFetchRemoteUrlDataTask(ExtractorTest):
+class TestFetchRemoteUrlDataTask(MetadataClientTest):
 
     def test_task_fetches_data_and_caches(self):
         mock_cache = {url: IN_JOB_QUEUE for url in self.sample_urls}
@@ -60,7 +60,7 @@ class TestFetchRemoteUrlDataTask(ExtractorTest):
         self.mock_redis.delete.side_effect = mock_delete
         self.mock_requests_get.side_effect = requests.RequestException
 
-        with self.assertRaises(URLExtractor.URLExtractorException):
+        with self.assertRaises(MetadataClient.MetadataClientException):
             fetch_remote_url_data(
                 self.sample_urls, time.time(), redis_client=self.mock_redis)
 
