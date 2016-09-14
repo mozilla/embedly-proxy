@@ -5,8 +5,8 @@ import json
 import redis
 import requests
 
-from embedly.extract import URLExtractor
-from embedly.tests.base import AppTest
+from proxy.extract import URLExtractor
+from proxy.tests.base import AppTest
 
 
 class ExtractorTest(AppTest):

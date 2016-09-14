@@ -4,8 +4,8 @@ import time
 import redis
 import requests
 
-from embedly.stats import statsd_client
-from embedly.tasks import fetch_recommended_urls
+from proxy.stats import statsd_client
+from proxy.tasks import fetch_recommended_urls
 
 
 class PocketClient(object):

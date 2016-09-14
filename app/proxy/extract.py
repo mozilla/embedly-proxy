@@ -5,9 +5,9 @@ import urllib
 import redis
 import requests
 
-from embedly.stats import statsd_client
-from embedly.tasks import fetch_remote_url_data
-from embedly.schema import EmbedlyURLSchema
+from proxy.stats import statsd_client
+from proxy.tasks import fetch_remote_url_data
+from proxy.schema import EmbedlyURLSchema
 
 
 IN_JOB_QUEUE = 'in job queue'
@@ -114,7 +114,7 @@ class URLExtractor(object):
                 statsd_client.incr('embedly_parse_failure')
                 raise self.URLExtractorException(
                     ('Unable to parse the JSON '
-                     'response from embedly: {error}').format(error=e))
+                     'response from proxy: {error}').format(error=e))
 
         parsed_data = {}
 

@@ -1,7 +1,7 @@
 def fetch_remote_url_data(urls, start_time, redis_client=None):
     import time
-    from embedly.app import get_extractor
-    from embedly.stats import statsd_client
+    from proxy.app import get_extractor
+    from proxy.stats import statsd_client
 
     statsd_client.incr('task_fetch_url_start')
 
@@ -17,8 +17,8 @@ def fetch_remote_url_data(urls, start_time, redis_client=None):
 
 def fetch_recommended_urls(start_time, redis_client=None):
     import time
-    from embedly.app import get_pocket_client
-    from embedly.stats import statsd_client
+    from proxy.app import get_pocket_client
+    from proxy.stats import statsd_client
 
     statsd_client.incr('task_fetch_recommended_start')
 

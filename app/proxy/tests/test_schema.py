@@ -1,5 +1,5 @@
-from embedly.tests.base import AppTest
-from embedly.schema import EmbedlyURLSchema
+from proxy.tests.base import AppTest
+from proxy.schema import EmbedlyURLSchema
 
 
 class TestEmbedlyURLSchema(AppTest):

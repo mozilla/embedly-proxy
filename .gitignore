@@ -65,4 +65,4 @@ target/
 .env
 
 # Version info
-embedly/version.json
+app/version.json

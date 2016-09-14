@@ -4,7 +4,7 @@ import redis
 from flask import Blueprint, current_app, request, Response
 from werkzeug.exceptions import HTTPException
 
-from embedly.stats import statsd_client
+from proxy.stats import statsd_client
 
 
 blueprint = Blueprint('views', __name__)

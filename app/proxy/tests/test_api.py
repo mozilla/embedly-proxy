@@ -4,9 +4,9 @@ import time
 
 import redis
 
-from embedly.tests.base import AppTest
-from embedly.tests.test_extract import ExtractorTest
-from embedly.tests.test_pocket import PocketClientTest
+from proxy.tests.base import AppTest
+from proxy.tests.test_extract import ExtractorTest
+from proxy.tests.test_pocket import PocketClientTest
 
 
 class TestHeartbeat(AppTest):

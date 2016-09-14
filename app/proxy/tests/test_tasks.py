@@ -3,10 +3,10 @@ import json
 
 import requests
 
-from embedly.extract import IN_JOB_QUEUE, URLExtractor
-from embedly.tasks import fetch_remote_url_data, fetch_recommended_urls
-from embedly.tests.test_extract import ExtractorTest
-from embedly.tests.test_pocket import PocketClientTest
+from proxy.extract import IN_JOB_QUEUE, URLExtractor
+from proxy.tasks import fetch_remote_url_data, fetch_recommended_urls
+from proxy.tests.test_extract import ExtractorTest
+from proxy.tests.test_pocket import PocketClientTest
 
 
 class TestFetchRemoteUrlDataTask(ExtractorTest):
