@@ -87,8 +87,8 @@ def extract_urls_v2():
 
     try:
         response_data['urls'] = (
-            current_app.metadata_client.extract_urls_async(urls))
-    except current_app.metadata_client.MetadataClientException, e:
+            current_app.embedly_client.extract_urls_async(urls))
+    except current_app.embedly_client.MetadataClientException, e:
         fail(response_data, 500, e.message)
 
     return Response(

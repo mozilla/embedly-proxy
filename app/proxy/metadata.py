@@ -206,3 +206,7 @@ class MetadataClient(object):
             self._queue_url_jobs(uncached_urls)
 
         return cached_url_data
+
+
+class EmbedlyClient(MetadataClient):
+    pass
