@@ -4,9 +4,9 @@ import time
 
 import redis
 
-from embedly.tests.base import AppTest
-from embedly.tests.test_extract import ExtractorTest
-from embedly.tests.test_pocket import PocketClientTest
+from proxy.tests.base import AppTest
+from proxy.tests.test_metadata import MetadataClientTest
+from proxy.tests.test_pocket import PocketClientTest
 
 
 class TestHeartbeat(AppTest):
@@ -48,7 +48,7 @@ class TestVersion(AppTest):
         self.assertEqual(response.data, self.app.config['VERSION_INFO'])
 
 
-class TestExtractV2(ExtractorTest):
+class TestExtractV2(MetadataClientTest):
 
     def test_request_method_must_be_post(self):
         response = self.client.get('/v2/extract')

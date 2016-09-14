@@ -3,7 +3,7 @@ from unittest import TestCase
 
 import mock
 
-from embedly.app import create_app
+from proxy.app import create_app
 
 
 EMBEDLY_TEST_DATA = {
@@ -32,7 +32,7 @@ class AppTest(TestCase):
         super(AppTest, self).setUp()
 
         mock_requests_get_patcher = mock.patch(
-            'embedly.extract.requests.get')
+            'proxy.metadata.requests.get')
         self.mock_requests_get = mock_requests_get_patcher.start()
         self.addCleanup(mock_requests_get_patcher.stop)
 

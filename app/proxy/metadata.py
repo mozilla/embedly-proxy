@@ -5,9 +5,9 @@ import urllib
 import redis
 import requests
 
-from embedly.stats import statsd_client
-from embedly.tasks import fetch_remote_url_data
-from embedly.schema import EmbedlyURLSchema
+from proxy.stats import statsd_client
+from proxy.tasks import fetch_remote_url_data
+from proxy.schema import EmbedlyURLSchema
 
 
 IN_JOB_QUEUE = 'in job queue'
@@ -19,9 +19,9 @@ def group_by(items, size):
         items = items[size:]
 
 
-class URLExtractor(object):
+class MetadataClient(object):
 
-    class URLExtractorException(Exception):
+    class MetadataClientException(Exception):
         pass
 
     def __init__(self, embedly_url, embedly_key, redis_client,
@@ -46,14 +46,14 @@ class URLExtractor(object):
         try:
             cached_data = self.redis_client.get(cache_key)
         except redis.RedisError:
-            raise self.URLExtractorException('Unable to read from redis.')
+            raise self.MetadataClientException('Unable to read from redis.')
 
         if cached_data is not None:
             statsd_client.incr('redis_cache_hit')
             try:
                 return json.loads(cached_data)
             except ValueError:
-                raise self.URLExtractorException(
+                raise self.MetadataClientException(
                     ('Unable to load JSON data '
                      'from cache for key: {key}').format(key=cache_key))
         else:
@@ -66,7 +66,7 @@ class URLExtractor(object):
             self.redis_client.setex(cache_key, timeout, json.dumps(data))
             statsd_client.incr('redis_cache_write')
         except redis.RedisError:
-            raise self.URLExtractorException('Unable to write to redis.')
+            raise self.MetadataClientException('Unable to write to redis.')
 
     def _build_embedly_url(self, urls):
         params = '&'.join([
@@ -81,7 +81,7 @@ class URLExtractor(object):
             params=params,
         )
 
-    def _get_urls_from_embedly(self, urls):
+    def _get_remote_urls_data(self, urls):
         statsd_client.gauge('embedly_request_url_count', len(urls))
 
         request_url = self._build_embedly_url(urls)
@@ -90,13 +90,13 @@ class URLExtractor(object):
             try:
                 response = requests.get(request_url)
             except requests.RequestException, e:
-                raise self.URLExtractorException(
+                raise self.MetadataClientException(
                     ('Unable to communicate '
                      'with embedly: {error}').format(error=e))
 
         if response.status_code != 200:
             statsd_client.incr('embedly_request_failure')
-            raise self.URLExtractorException(
+            raise self.MetadataClientException(
                 ('Error status returned from '
                  'embedly: {error_code} {error_message}').format(
                     error_code=response.status_code,
@@ -112,7 +112,7 @@ class URLExtractor(object):
                 embedly_data = json.loads(response.content)
             except (TypeError, ValueError), e:
                 statsd_client.incr('embedly_parse_failure')
-                raise self.URLExtractorException(
+                raise self.MetadataClientException(
                     ('Unable to parse the JSON '
                      'response from embedly: {error}').format(error=e))
 
@@ -168,22 +168,22 @@ class URLExtractor(object):
     def get_remote_urls(self, urls):
         self._remove_cached_keys(urls)
 
-        embedly_urls_data = self._get_urls_from_embedly(urls)
+        remote_urls_data = self._get_remote_urls_data(urls)
         validated_urls_data = {}
 
-        for embedly_url in urls:
-            if embedly_url in embedly_urls_data:
-                embedly_data = embedly_urls_data[embedly_url]
-                validated_data = self.schema.load(embedly_data)
+        for original_url in urls:
+            if original_url in remote_urls_data:
+                remote_data = remote_urls_data[original_url]
+                validated_data = self.schema.load(remote_data)
 
                 if not validated_data.errors:
                     self._set_cached_url(
-                        embedly_url,
+                        original_url,
                         validated_data.data,
                         self.redis_data_timeout,
                     )
 
-                    validated_urls_data[embedly_url] = validated_data.data
+                    validated_urls_data[original_url] = validated_data.data
 
         return validated_urls_data
 

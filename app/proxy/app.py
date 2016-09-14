@@ -7,7 +7,7 @@ from raven.contrib.flask import Sentry
 from rq import Queue
 
 import api.views
-from extract import URLExtractor
+from metadata import MetadataClient
 from pocket import PocketClient
 
 
@@ -44,10 +44,10 @@ def get_job_queue(redis_client=None):
     return Queue(connection=redis_client)
 
 
-def get_extractor(redis_client=None, job_queue=None):
+def get_metadata_client(redis_client=None, job_queue=None):
     config = get_config()
 
-    return URLExtractor(
+    return MetadataClient(
         config['EMBEDLY_URL'],
         config['EMBEDLY_KEY'],
         redis_client or get_redis_client(),
@@ -85,7 +85,7 @@ def create_app(redis_client=None, job_queue=None):
 
     app.job_queue = job_queue or get_job_queue(app.redis_client)
 
-    app.extractor = get_extractor(app.redis_client, app.job_queue)
+    app.metadata_client = get_metadata_client(app.redis_client, app.job_queue)
 
     app.pocket_client = get_pocket_client(app.redis_client, app.job_queue)
 

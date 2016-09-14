@@ -5,8 +5,8 @@ import time
 import redis
 import requests
 
-from embedly.pocket import PocketClient
-from embedly.tests.base import AppTest
+from proxy.pocket import PocketClient
+from proxy.tests.base import AppTest
 
 
 class PocketClientTest(AppTest):
