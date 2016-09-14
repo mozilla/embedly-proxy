@@ -81,7 +81,7 @@ class MetadataClient(object):
             params=params,
         )
 
-    def _get_urls_from_embedly(self, urls):
+    def _get_remote_urls_data(self, urls):
         statsd_client.gauge('embedly_request_url_count', len(urls))
 
         request_url = self._build_embedly_url(urls)
@@ -114,7 +114,7 @@ class MetadataClient(object):
                 statsd_client.incr('embedly_parse_failure')
                 raise self.MetadataClientException(
                     ('Unable to parse the JSON '
-                     'response from proxy: {error}').format(error=e))
+                     'response from embedly: {error}').format(error=e))
 
         parsed_data = {}
 
@@ -168,22 +168,22 @@ class MetadataClient(object):
     def get_remote_urls(self, urls):
         self._remove_cached_keys(urls)
 
-        embedly_urls_data = self._get_urls_from_embedly(urls)
+        remote_urls_data = self._get_remote_urls_data(urls)
         validated_urls_data = {}
 
-        for embedly_url in urls:
-            if embedly_url in embedly_urls_data:
-                embedly_data = embedly_urls_data[embedly_url]
-                validated_data = self.schema.load(embedly_data)
+        for original_url in urls:
+            if original_url in remote_urls_data:
+                remote_data = remote_urls_data[original_url]
+                validated_data = self.schema.load(remote_data)
 
                 if not validated_data.errors:
                     self._set_cached_url(
-                        embedly_url,
+                        original_url,
                         validated_data.data,
                         self.redis_data_timeout,
                     )
 
-                    validated_urls_data[embedly_url] = validated_data.data
+                    validated_urls_data[original_url] = validated_data.data
 
         return validated_urls_data
 
