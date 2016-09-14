@@ -1,4 +1,4 @@
-embedly:
+app:
   image: app:build
   env_file: .env
   user: root
@@ -20,7 +20,7 @@ worker:
 nginx:
   build: ./nginx
   links:
-    - embedly
+    - app
   ports:
     - "80:80"
   restart: never 
