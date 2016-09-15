@@ -6,7 +6,7 @@ import mock
 from proxy.app import create_app
 
 
-EMBEDLY_TEST_DATA = {
+TEST_METADATA = {
     'description': 'Example web site',
     'favicon_url': 'https://www.example.com/favicon.ico',
     'images': [{
@@ -49,12 +49,12 @@ class AppTest(TestCase):
 
         self.client = self.app.test_client()
 
-        self.test_data = copy.copy(EMBEDLY_TEST_DATA)
+        self.test_data = copy.copy(TEST_METADATA)
 
     def get_mock_url_data(self, url):
-        embedly_data = copy.copy(EMBEDLY_TEST_DATA)
-        embedly_data['original_url'] = url
-        return embedly_data
+        test_metadata = copy.copy(TEST_METADATA)
+        test_metadata['original_url'] = url
+        return test_metadata
 
     def get_mock_urls_data(self, urls):
         return [self.get_mock_url_data(url) for url in urls]
@@ -65,3 +65,9 @@ class AppTest(TestCase):
         mock_response.content = content
 
         return mock_response
+
+    def get_response_data(self, urls):
+        return {
+            url: self.get_mock_url_data(url)
+            for url in urls
+        }
