@@ -24,11 +24,8 @@ class MetadataClient(object):
     class MetadataClientException(Exception):
         pass
 
-    def __init__(self, embedly_url, embedly_key, redis_client,
-                 redis_data_timeout, redis_job_timeout, blocked_domains,
-                 job_queue, job_ttl, url_batch_size):
-        self.embedly_url = embedly_url
-        self.embedly_key = embedly_key
+    def __init__(self, redis_client, redis_data_timeout, redis_job_timeout,
+                 blocked_domains, job_queue, job_ttl, url_batch_size):
         self.redis_client = redis_client
         self.redis_data_timeout = redis_data_timeout
         self.redis_job_timeout = redis_job_timeout
@@ -67,6 +64,97 @@ class MetadataClient(object):
             statsd_client.incr('redis_cache_write')
         except redis.RedisError:
             raise self.MetadataClientException('Unable to write to redis.')
+
+    def _queue_url_jobs(self, urls):
+        batched_urls = group_by(list(urls), self.url_batch_size)
+
+        for url_batch in batched_urls:
+            try:
+                self.job_queue.enqueue(
+                    fetch_remote_url_data,
+                    url_batch,
+                    time.time(),
+                    ttl=self.job_ttl,
+                    at_front=True,
+                )
+                statsd_client.gauge(
+                    'request_fetch_job_create', len(url_batch))
+                statsd_client.gauge(
+                    'request_fetch_job_queue_size', self.job_queue.count)
+
+                for queued_url in url_batch:
+                    self._set_cached_url(
+                        queued_url, IN_JOB_QUEUE, self.redis_job_timeout)
+
+            except Exception:
+                statsd_client.incr('request_fetch_job_create_fail')
+
+    def _remove_cached_keys(self, urls):
+        self.redis_client.delete(*[self._get_cache_key(url) for url in urls])
+
+    def get_cached_urls(self, urls):
+        url_data = {}
+
+        for url in urls:
+            cached_url_data = self._get_cached_url(url)
+
+            if cached_url_data is not None:
+                url_data[url] = cached_url_data
+
+        return url_data
+
+    def _get_remote_urls_data(self, urls):
+        raise NotImplementedError
+
+    def get_remote_urls(self, urls):
+        self._remove_cached_keys(urls)
+
+        remote_urls_data = self._get_remote_urls_data(urls)
+        validated_urls_data = {}
+
+        for original_url in urls:
+            if original_url in remote_urls_data:
+                remote_data = remote_urls_data[original_url]
+                validated_data = self.schema.load(remote_data)
+
+                if not validated_data.errors:
+                    self._set_cached_url(
+                        original_url,
+                        validated_data.data,
+                        self.redis_data_timeout,
+                    )
+
+                    validated_urls_data[original_url] = validated_data.data
+
+        return validated_urls_data
+
+    def extract_urls_async(self, urls):
+        all_cached_url_data = self.get_cached_urls(urls)
+
+        if IN_JOB_QUEUE in all_cached_url_data.values():
+            statsd_client.incr('request_in_job_queue')
+
+        cached_url_data = {
+            url: url_data
+            for (url, url_data)
+            in all_cached_url_data.items()
+            if url_data != IN_JOB_QUEUE
+        }
+
+        uncached_urls = set(urls) - set(all_cached_url_data.keys())
+
+        if uncached_urls:
+            self._queue_url_jobs(uncached_urls)
+
+        return cached_url_data
+
+
+class EmbedlyClient(MetadataClient):
+
+    def __init__(self, embedly_url, embedly_key, *args, **kwargs):
+        self.embedly_url = embedly_url
+        self.embedly_key = embedly_key
+        super(EmbedlyClient, self).__init__(*args, **kwargs)
 
     def _build_embedly_url(self, urls):
         params = '&'.join([
@@ -126,87 +214,3 @@ class MetadataClient(object):
             }
 
         return parsed_data
-
-    def _queue_url_jobs(self, urls):
-        batched_urls = group_by(list(urls), self.url_batch_size)
-
-        for url_batch in batched_urls:
-            try:
-                self.job_queue.enqueue(
-                    fetch_remote_url_data,
-                    url_batch,
-                    time.time(),
-                    ttl=self.job_ttl,
-                    at_front=True,
-                )
-                statsd_client.gauge(
-                    'request_fetch_job_create', len(url_batch))
-                statsd_client.gauge(
-                    'request_fetch_job_queue_size', self.job_queue.count)
-
-                for queued_url in url_batch:
-                    self._set_cached_url(
-                        queued_url, IN_JOB_QUEUE, self.redis_job_timeout)
-
-            except Exception:
-                statsd_client.incr('request_fetch_job_create_fail')
-
-    def _remove_cached_keys(self, urls):
-        self.redis_client.delete(*[self._get_cache_key(url) for url in urls])
-
-    def get_cached_urls(self, urls):
-        url_data = {}
-
-        for url in urls:
-            cached_url_data = self._get_cached_url(url)
-
-            if cached_url_data is not None:
-                url_data[url] = cached_url_data
-
-        return url_data
-
-    def get_remote_urls(self, urls):
-        self._remove_cached_keys(urls)
-
-        remote_urls_data = self._get_remote_urls_data(urls)
-        validated_urls_data = {}
-
-        for original_url in urls:
-            if original_url in remote_urls_data:
-                remote_data = remote_urls_data[original_url]
-                validated_data = self.schema.load(remote_data)
-
-                if not validated_data.errors:
-                    self._set_cached_url(
-                        original_url,
-                        validated_data.data,
-                        self.redis_data_timeout,
-                    )
-
-                    validated_urls_data[original_url] = validated_data.data
-
-        return validated_urls_data
-
-    def extract_urls_async(self, urls):
-        all_cached_url_data = self.get_cached_urls(urls)
-
-        if IN_JOB_QUEUE in all_cached_url_data.values():
-            statsd_client.incr('request_in_job_queue')
-
-        cached_url_data = {
-            url: url_data
-            for (url, url_data)
-            in all_cached_url_data.items()
-            if url_data != IN_JOB_QUEUE
-        }
-
-        uncached_urls = set(urls) - set(all_cached_url_data.keys())
-
-        if uncached_urls:
-            self._queue_url_jobs(uncached_urls)
-
-        return cached_url_data
-
-
-class EmbedlyClient(MetadataClient):
-    pass

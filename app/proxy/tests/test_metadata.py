@@ -2,27 +2,27 @@
 import random
 import json
 
+import mock
 import redis
 import requests
 
-from proxy.metadata import MetadataClient
+from proxy.metadata import EmbedlyClient, MetadataClient
 from proxy.tests.base import AppTest
 
 
 class MetadataClientTest(AppTest):
 
-    def get_response_data(self, urls):
-        return {
-            url: self.get_mock_url_data(url)
-            for url in urls
-        }
-
     def setUp(self):
         super(MetadataClientTest, self).setUp()
 
-        self.metadata_client = MetadataClient(
-            '',
-            '',
+        metadata_client_test = self
+
+        class TestMetadataClient(MetadataClient):
+
+            def _get_remote_urls_data(self, urls):
+                return metadata_client_test.get_response_data(urls)
+
+        self.metadata_client = TestMetadataClient(
             self.mock_redis,
             10,
             10,
@@ -167,6 +167,82 @@ class TestMetadataClientGetCachedURLs(MetadataClientTest):
 
 class TestMetadataClientGetRemoteURLs(MetadataClientTest):
 
+    def test_redis_get_error_raises_exception(self):
+        self.mock_redis.setex.side_effect = redis.RedisError
+
+        embedly_data = self.get_mock_urls_data(self.sample_urls)
+
+        self.mock_requests_get.return_value = self.get_mock_response(
+            content=json.dumps(embedly_data))
+
+        with self.assertRaises(MetadataClient.MetadataClientException):
+            self.metadata_client.get_remote_urls(self.sample_urls)
+
+        self.assertEqual(self.mock_redis.setex.call_count, 1)
+
+    def test_invalid_data_not_included_in_results(self):
+        valid_url = 'https://example.com/valid'
+        valid_url_data = self.get_mock_url_data(valid_url)
+
+        invalid_url = 'https://example.com/invalid'
+        invalid_url_data = self.get_mock_url_data(invalid_url)
+        invalid_url_data['url'] = 'invalid url'
+
+        remote_data = {
+            valid_url: valid_url_data,
+            invalid_url: invalid_url_data,
+        }
+
+        self.metadata_client._get_remote_urls_data = mock.Mock()
+        self.metadata_client._get_remote_urls_data.return_value = remote_data
+
+        extracted_urls = self.metadata_client.get_remote_urls([
+            valid_url,
+            invalid_url,
+        ])
+
+        self.assertEqual(self.mock_redis.get.call_count, 0)
+        self.assertEqual(self.mock_redis.setex.call_count, 1)
+
+        self.assertIn(valid_url, extracted_urls)
+        self.assertNotIn(invalid_url, extracted_urls)
+
+        self.assertEqual(extracted_urls, {
+            valid_url: valid_url_data,
+        })
+
+
+class TestEmbedlyClient(AppTest):
+
+    def setUp(self):
+        super(TestEmbedlyClient, self).setUp()
+
+        self.metadata_client = EmbedlyClient(
+            '',
+            '',
+            self.mock_redis,
+            10,
+            10,
+            [],
+            self.mock_job_queue,
+            10,
+            self.app.config['URL_BATCH_SIZE'],
+        )
+
+        self.sample_urls = [
+            'http://example.com/?this=that&things=stuff',
+            u'http://www.example.com/path/to/things/?these=中',
+        ]
+
+        self.expected_response = self.get_response_data(self.sample_urls)
+
+    def test_invalid_json_from_embedly_raises_exception(self):
+        self.mock_requests_get.return_value = self.get_mock_response(
+            content='\invalid json')
+
+        with self.assertRaises(MetadataClient.MetadataClientException):
+            self.metadata_client.get_remote_urls(self.sample_urls)
+
     def test_multiple_urls_queried_from_embedly(self):
         embedly_data = self.get_mock_urls_data(self.sample_urls)
 
@@ -181,33 +257,6 @@ class TestMetadataClientGetRemoteURLs(MetadataClientTest):
 
         self.assertEqual(extracted_urls, self.expected_response)
 
-    def test_redis_get_error_raises_exception(self):
-        self.mock_redis.setex.side_effect = redis.RedisError
-
-        embedly_data = self.get_mock_urls_data(self.sample_urls)
-
-        self.mock_requests_get.return_value = self.get_mock_response(
-            content=json.dumps(embedly_data))
-
-        with self.assertRaises(MetadataClient.MetadataClientException):
-            self.metadata_client.get_remote_urls(self.sample_urls)
-
-        self.assertEqual(self.mock_requests_get.call_count, 1)
-        self.assertEqual(self.mock_redis.setex.call_count, 1)
-
-    def test_request_error_raises_exception(self):
-        self.mock_requests_get.side_effect = requests.RequestException()
-
-        with self.assertRaises(MetadataClient.MetadataClientException):
-            self.metadata_client.get_remote_urls(self.sample_urls)
-
-    def test_invalid_json_from_embedly_raises_exception(self):
-        self.mock_requests_get.return_value = self.get_mock_response(
-            content='\invalid json')
-
-        with self.assertRaises(MetadataClient.MetadataClientException):
-            self.metadata_client.get_remote_urls(self.sample_urls)
-
     def test_error_from_embedly_raises_exception(self):
         self.mock_requests_get.return_value = self.get_mock_response(
             status=400,
@@ -220,38 +269,6 @@ class TestMetadataClientGetRemoteURLs(MetadataClientTest):
 
         with self.assertRaises(MetadataClient.MetadataClientException):
             self.metadata_client.get_remote_urls(self.sample_urls)
-
-    def test_invalid_data_not_included_in_results(self):
-        valid_url = 'https://example.com/valid'
-        valid_url_data = self.get_mock_url_data(valid_url)
-
-        invalid_url = 'https://example.com/invalid'
-        invalid_url_data = self.get_mock_url_data(invalid_url)
-        invalid_url_data['url'] = 'invalid url'
-
-        embedly_data = [
-            valid_url_data,
-            invalid_url_data,
-        ]
-
-        self.mock_requests_get.return_value = self.get_mock_response(
-            content=json.dumps(embedly_data))
-
-        extracted_urls = self.metadata_client.get_remote_urls([
-            valid_url,
-            invalid_url,
-        ])
-
-        self.assertEqual(self.mock_redis.get.call_count, 0)
-        self.assertEqual(self.mock_redis.setex.call_count, 1)
-        self.assertEqual(self.mock_requests_get.call_count, 1)
-
-        self.assertIn(valid_url, extracted_urls)
-        self.assertNotIn(invalid_url, extracted_urls)
-
-        self.assertEqual(extracted_urls, {
-            valid_url: valid_url_data,
-        })
 
     def test_embedly_modified_urls_are_omitted_from_response(self):
         unmodified_url = 'http://www.example.com/unmodified'
@@ -274,3 +291,9 @@ class TestMetadataClientGetRemoteURLs(MetadataClientTest):
         self.assertIn(unmodified_url, extracted_urls)
         self.assertNotIn(original_modified_url, extracted_urls)
         self.assertNotIn(embedly_modified_url, extracted_urls)
+
+    def test_request_error_raises_exception(self):
+        self.mock_requests_get.side_effect = requests.RequestException()
+
+        with self.assertRaises(MetadataClient.MetadataClientException):
+            self.metadata_client.get_remote_urls(self.sample_urls)
