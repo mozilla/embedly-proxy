@@ -7,7 +7,7 @@ from raven.contrib.flask import Sentry
 from rq import Queue
 
 import api.views
-from metadata import EmbedlyClient
+from metadata import EmbedlyClient, MozillaClient
 from pocket import PocketClient
 
 
@@ -16,6 +16,8 @@ def get_config():
         'BLOCKED_DOMAINS': ['embedly.com'],
         'EMBEDLY_KEY': os.environ.get('EMBEDLY_KEY', None),
         'EMBEDLY_URL': 'https://api.embedly.com/1/extract',
+        'MOZILLA_URL': (
+            'https://page-metadata.services.mozilla.com/v1/metadata'),
         'JOB_TTL': 300,
         'MAXIMUM_POST_URLS': 25,
         'POCKET_URL': (
@@ -44,19 +46,36 @@ def get_job_queue(redis_client=None):
     return Queue(connection=redis_client)
 
 
+def get_metadata_client_args(redis_client=None, job_queue=None):
+    config = get_config()
+
+    return {
+        'redis_client': redis_client or get_redis_client(),
+        'redis_data_timeout': config['REDIS_DATA_TIMEOUT'],
+        'redis_job_timeout': config['REDIS_JOB_TIMEOUT'],
+        'blocked_domains': config['BLOCKED_DOMAINS'],
+        'job_queue': job_queue or get_job_queue(),
+        'job_ttl': config['JOB_TTL'],
+        'url_batch_size': config['URL_BATCH_SIZE'],
+    }
+
+
 def get_embedly_client(redis_client=None, job_queue=None):
     config = get_config()
 
     return EmbedlyClient(
-        config['EMBEDLY_URL'],
-        config['EMBEDLY_KEY'],
-        redis_client or get_redis_client(),
-        config['REDIS_DATA_TIMEOUT'],
-        config['REDIS_JOB_TIMEOUT'],
-        config['BLOCKED_DOMAINS'],
-        job_queue or get_job_queue(),
-        config['JOB_TTL'],
-        config['URL_BATCH_SIZE'],
+        embedly_url=config['EMBEDLY_URL'],
+        embedly_key=config['EMBEDLY_KEY'],
+        **get_metadata_client_args(redis_client, job_queue)
+    )
+
+
+def get_mozilla_client(redis_client=None, job_queue=None):
+    config = get_config()
+
+    return MozillaClient(
+        mozilla_url=config['MOZILLA_URL'],
+        **get_metadata_client_args(redis_client, job_queue)
     )
 
 
@@ -86,6 +105,8 @@ def create_app(redis_client=None, job_queue=None):
     app.job_queue = job_queue or get_job_queue(app.redis_client)
 
     app.embedly_client = get_embedly_client(app.redis_client, app.job_queue)
+
+    app.mozilla_client = get_mozilla_client(app.redis_client, app.job_queue)
 
     app.pocket_client = get_pocket_client(app.redis_client, app.job_queue)
 

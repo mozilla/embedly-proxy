@@ -103,8 +103,54 @@ class MetadataClient(object):
 
         return url_data
 
-    def _get_remote_urls_data(self, urls):
+    def _make_remote_request(self, urls):
         raise NotImplementedError
+
+    def _parse_remote_data(self, remote_data):
+        raise NotImplementedError
+
+    def _get_remote_urls_data(self, urls):
+        statsd_client.gauge('{service}_request_url_count'.format(
+            service=self.SERVICE_NAME), len(urls))
+
+        with statsd_client.timer('{service}_request_timer'.format(
+                                 service=self.SERVICE_NAME)):
+            try:
+                response = self._make_remote_request(urls)
+            except requests.RequestException, e:
+                raise self.MetadataClientException(
+                    ('Unable to communicate '
+                     'with {service}: {error}').format(
+                         service=self.SERVICE_NAME, error=e))
+
+        if response.status_code != 200:
+            statsd_client.incr('{service}_request_failure'.format(
+                service=self.SERVICE_NAME))
+            raise self.MetadataClientException(
+                ('Error status returned from '
+                 '{service}: {error_code} {error_message}').format(
+                    service=self.SERVICE_NAME,
+                    error_code=response.status_code,
+                    error_message=response.content,
+                  ))
+
+        statsd_client.incr('{service}_request_success'.format(
+            service=self.SERVICE_NAME))
+
+        remote_data = []
+
+        if response is not None:
+            try:
+                remote_data = json.loads(response.content)
+            except (TypeError, ValueError), e:
+                statsd_client.incr('{service}_parse_failure'.format(
+                    service=self.SERVICE_NAME))
+                raise self.MetadataClientException(
+                    ('Unable to parse the JSON '
+                     'response from {service}: {error}').format(
+                         service=self.SERVICE_NAME, error=e))
+
+        return self._parse_remote_data(urls, remote_data)
 
     def get_remote_urls(self, urls):
         self._remove_cached_keys(urls)
@@ -150,6 +196,7 @@ class MetadataClient(object):
 
 
 class EmbedlyClient(MetadataClient):
+    SERVICE_NAME = 'embedly'
 
     def __init__(self, embedly_url, embedly_key, *args, **kwargs):
         self.embedly_url = embedly_url
@@ -169,48 +216,34 @@ class EmbedlyClient(MetadataClient):
             params=params,
         )
 
-    def _get_remote_urls_data(self, urls):
-        statsd_client.gauge('embedly_request_url_count', len(urls))
+    def _make_remote_request(self, urls):
+        return requests.get(self._build_embedly_url(urls))
 
-        request_url = self._build_embedly_url(urls)
+    def _parse_remote_data(self, urls, remote_data):
+        return {
+            url_data['original_url']: url_data
+            for url_data in remote_data
+            if url_data['original_url'] in urls
+        }
 
-        with statsd_client.timer('embedly_request_timer'):
-            try:
-                response = requests.get(request_url)
-            except requests.RequestException, e:
-                raise self.MetadataClientException(
-                    ('Unable to communicate '
-                     'with embedly: {error}').format(error=e))
 
-        if response.status_code != 200:
-            statsd_client.incr('embedly_request_failure')
-            raise self.MetadataClientException(
-                ('Error status returned from '
-                 'embedly: {error_code} {error_message}').format(
-                    error_code=response.status_code,
-                    error_message=response.content,
-                  ))
+class MozillaClient(MetadataClient):
+    SERVICE_NAME = 'mozilla'
 
-        statsd_client.incr('embedly_request_success')
+    def __init__(self, mozilla_url, *args, **kwargs):
+        self.mozilla_url = mozilla_url
+        super(MozillaClient, self).__init__(*args, **kwargs)
 
-        embedly_data = []
+    def _make_remote_request(self, urls):
+        return requests.post(
+            self.mozilla_url,
+            headers={'content-type': 'application/json'},
+            json={'urls': urls},
+        )
 
-        if response is not None:
-            try:
-                embedly_data = json.loads(response.content)
-            except (TypeError, ValueError), e:
-                statsd_client.incr('embedly_parse_failure')
-                raise self.MetadataClientException(
-                    ('Unable to parse the JSON '
-                     'response from embedly: {error}').format(error=e))
-
-        parsed_data = {}
-
-        if type(embedly_data) is list:
-            parsed_data = {
-                url_data['original_url']: url_data
-                for url_data in embedly_data
-                if url_data['original_url'] in urls
-            }
-
-        return parsed_data
+    def _parse_remote_data(self, urls, remote_data):
+        return {
+            url_data['original_url']: url_data
+            for url_data in remote_data['urls'].values()
+            if url_data['original_url'] in urls
+        }
