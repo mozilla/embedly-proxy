@@ -36,6 +36,11 @@ class AppTest(TestCase):
         self.mock_requests_get = mock_requests_get_patcher.start()
         self.addCleanup(mock_requests_get_patcher.stop)
 
+        mock_requests_post_patcher = mock.patch(
+            'proxy.metadata.requests.post')
+        self.mock_requests_post = mock_requests_post_patcher.start()
+        self.addCleanup(mock_requests_post_patcher.stop)
+
         self.mock_redis = mock.Mock()
         self.mock_redis.get.return_value = None
         self.mock_redis.setex.return_value = None
