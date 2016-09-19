@@ -13,13 +13,14 @@ Extract V1
 
   This V1 API is no longer supported.
 
-Extract V2
+Fetch Metadata V2
 ----
-  Extract metadata from a provided list of URLs.
+  Fetch metadata for a provided list of URLs from remote metadata services.
 
-* **URL**
+* **Service URLs**
 
-  https://embedly-proxy.dev.mozaws.net/v2/extract
+  Embedly: https://embedly-proxy.dev.mozaws.net/v2/extract
+  Mozilla: https://embedly-proxy.dev.mozaws.net/v2/metadata
 
 * **Method:**
 
@@ -95,19 +96,4 @@ Extract V2
   The server was unable to satisfy the request.
 
 * **Sample Call:**
-
-        $.ajax({
-          url: "https://embedly-proxy.dev.mozaws.net/v2/extract,
-          type : "POST",
-          dataType: "json",
-          contentType : "application/json",
-          data: JSON.stringify({
-            urls: [
-              'https://www.mozilla.org/',
-              'https://developer.mozilla.org/en-US/docs/Web/JavaScript'
-            ]
-          }),
-          success : function(r, data) {
-            console.log(data);
-          }
-        });
+        curl -X POST -d '{"urls":["https://www.mozilla.org"]}' -H 'content-type:application/json' https://embedly-proxy.services.mozilla.com/v2/metadata

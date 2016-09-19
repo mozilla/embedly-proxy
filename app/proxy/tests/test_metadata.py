@@ -132,6 +132,31 @@ class TestMetadataClientExtractURLsAsync(MetadataClientTest):
             ['http://www.example.com/3'],
         )
 
+    def test_job_queue_failure_returns_cached_data(self):
+        cached_urls = self.sample_urls[:1]
+
+        def fake_cache(urls):
+            def mock_cache_get(cache_key):
+                for url in urls:
+                    if url in cache_key:
+                        return json.dumps(self.get_mock_url_data(url))
+
+            return mock_cache_get
+
+        self.mock_redis.get.side_effect = fake_cache(cached_urls)
+        self.mock_job_queue.enqueue.side_effect = Exception
+
+        cached_url_data = self.metadata_client.extract_urls_async(
+            self.sample_urls)
+
+        self.assertEqual(self.mock_redis.get.call_count, len(self.sample_urls))
+        self.assertEqual(self.mock_redis.setex.call_count, 0)
+        self.assertEqual(self.mock_job_queue.enqueue.call_count, 1)
+
+        self.assertEqual(cached_url_data, {
+            url: self.get_mock_url_data(url) for url in cached_urls
+        })
+
 
 class TestMetadataClientGetCachedURLs(MetadataClientTest):
 
