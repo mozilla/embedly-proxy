@@ -121,11 +121,17 @@ class TestExtractV2(MetadataClientTest):
         self.assertEqual(response.status_code, 400)
 
     def test_extract_returns_cached_data(self):
+        cached_urls = self.sample_urls
 
-        def mock_cache_get(url):
-            return json.dumps(self.get_mock_url_data(url))
+        def fake_cache(urls):
+            def mock_cache_get(cache_key):
+                for url in urls:
+                    if url in cache_key:
+                        return json.dumps(self.get_mock_url_data(url))
 
-        self.mock_redis.get.side_effect = mock_cache_get
+            return mock_cache_get
+
+        self.mock_redis.get.side_effect = fake_cache(cached_urls)
 
         response = self.client.post(
             '/v2/extract',
@@ -154,9 +160,10 @@ class TestExtractV2(MetadataClientTest):
         uncached_urls = urls[1:]
 
         def fake_cache(urls):
-            def mock_cache_get(url):
-                if url in urls:
-                    return json.dumps(self.get_mock_url_data(url))
+            def mock_cache_get(cache_key):
+                for url in urls:
+                    if url in cache_key:
+                        return json.dumps(self.get_mock_url_data(url))
 
             return mock_cache_get
 
@@ -188,9 +195,10 @@ class TestExtractV2(MetadataClientTest):
         cached_urls = self.sample_urls[:1]
 
         def fake_cache(urls):
-            def mock_cache_get(url):
-                if url in urls:
-                    return json.dumps(self.get_mock_url_data(url))
+            def mock_cache_get(cache_key):
+                for url in urls:
+                    if url in cache_key:
+                        return json.dumps(self.get_mock_url_data(url))
 
             return mock_cache_get
 

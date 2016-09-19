@@ -154,9 +154,10 @@ class TestMetadataClientGetCachedURLs(MetadataClientTest):
     def test_multiple_urls_queried_from_cache(self):
 
         def get_fake_cache(urls):
-            def mocked_lookup(url):
-                if url in urls:
-                    return json.dumps(self.get_mock_url_data(url))
+            def mocked_lookup(cache_key):
+                for url in urls:
+                    if url in cache_key:
+                        return json.dumps(self.get_mock_url_data(url))
 
             return mocked_lookup
 
@@ -170,11 +171,9 @@ class TestMetadataClientGetCachedURLs(MetadataClientTest):
 
         self.assertEqual(self.mock_redis.get.call_count, 3)
         self.assertEqual(self.mock_redis.setex.call_count, 0)
-        self.assertEqual(self.mock_requests_get.call_count, 0)
 
         expected_response = {
-            url: self.get_mock_url_data(
-                self.metadata_client._get_cache_key(url))
+            url: self.get_mock_url_data(url)
             for url in self.sample_urls
         }
 
@@ -236,10 +235,7 @@ class TestMetadataClientGetRemoteURLs(MetadataClientTest):
             self.metadata_client.get_remote_urls(self.sample_urls)
 
     def test_task_fetches_data_and_caches(self):
-        mock_cache = {
-            url: self.metadata_client.IN_JOB_QUEUE
-            for url in self.sample_urls
-        }
+        mock_cache = {}
 
         def mock_set(key, value, *args, **kwargs):
             mock_cache[key] = value
@@ -255,25 +251,28 @@ class TestMetadataClientGetRemoteURLs(MetadataClientTest):
         self.metadata_client._make_remote_request.return_value = (
             self.get_mock_response(content=json.dumps(embedly_data)))
 
+        for url in self.sample_urls:
+            self.metadata_client._set_cached_url(
+                url, self.metadata_client.IN_JOB_QUEUE, 0)
+
         extracted_urls = self.metadata_client.get_remote_urls(self.sample_urls)
 
         self.assertEqual(extracted_urls, self.expected_response)
         self.assertEqual(self.mock_redis.delete.call_count, 1)
         self.assertEqual(self.mock_redis.get.call_count, 0)
         self.assertEqual(
-            self.mock_redis.setex.call_count, len(self.sample_urls))
-        self.assertEqual(mock_cache.keys(), self.sample_urls)
+            self.mock_redis.setex.call_count, 2 * len(self.sample_urls))
+        self.assertEqual(
+            mock_cache.keys(),
+            [self.metadata_client._get_cache_key(url)
+                for url in self.sample_urls])
         self.assertNotIn(
             self.metadata_client.IN_JOB_QUEUE, mock_cache.values())
 
     def test_task_removes_placeholder_values_if_job_fails(self):
         existing_url = 'http://www.example.com'
-
-        mock_cache = {
-            url: self.metadata_client.IN_JOB_QUEUE
-            for url in self.sample_urls
-        }
-        mock_cache[existing_url] = self.get_mock_url_data(existing_url)
+        existing_url_key = self.metadata_client._get_cache_key(existing_url)
+        mock_cache = {}
 
         def mock_set(key, value, *args, **kwargs):
             mock_cache[key] = value
@@ -291,13 +290,21 @@ class TestMetadataClientGetRemoteURLs(MetadataClientTest):
         self.metadata_client._make_remote_request.side_effect = (
             requests.RequestException)
 
+        self.metadata_client._set_cached_url(
+            existing_url, self.get_mock_url_data(existing_url), 0)
+
+        for url in self.sample_urls:
+            self.metadata_client._set_cached_url(
+                url, self.metadata_client.IN_JOB_QUEUE, 0)
+
         with self.assertRaises(MetadataClient.MetadataClientException):
             self.metadata_client.get_remote_urls(self.sample_urls)
 
         self.assertEqual(self.mock_redis.delete.call_count, 1)
         self.assertEqual(self.mock_redis.get.call_count, 0)
-        self.assertEqual(self.mock_redis.setex.call_count, 0)
-        self.assertEqual(mock_cache.keys(), [existing_url])
+        self.assertEqual(
+            self.mock_redis.setex.call_count, len(self.sample_urls) + 1)
+        self.assertEqual(mock_cache.keys(), [existing_url_key])
 
 
 class EmbedlyClientTest(MetadataClientTest):
