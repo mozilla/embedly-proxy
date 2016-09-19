@@ -33,7 +33,7 @@ class MetadataClient(object):
         self.url_batch_size = url_batch_size
 
     def _get_cache_key(self, url):
-        return url
+        return u'{service}:{url}'.format(service=self.SERVICE_NAME, url=url)
 
     def _get_cached_url(self, url):
         cache_key = self._get_cache_key(url)
