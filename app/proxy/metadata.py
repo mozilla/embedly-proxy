@@ -6,11 +6,8 @@ import redis
 import requests
 
 from proxy.stats import statsd_client
-from proxy.tasks import fetch_remote_url_data
+from proxy.tasks import fetch_embedly_data, fetch_mozilla_data
 from proxy.schema import EmbedlyURLSchema
-
-
-IN_JOB_QUEUE = 'in job queue'
 
 
 def group_by(items, size):
@@ -20,6 +17,7 @@ def group_by(items, size):
 
 
 class MetadataClient(object):
+    IN_JOB_QUEUE = 'in job queue'
 
     class MetadataClientException(Exception):
         pass
@@ -71,7 +69,7 @@ class MetadataClient(object):
         for url_batch in batched_urls:
             try:
                 self.job_queue.enqueue(
-                    fetch_remote_url_data,
+                    self.TASK,
                     url_batch,
                     time.time(),
                     ttl=self.job_ttl,
@@ -84,7 +82,7 @@ class MetadataClient(object):
 
                 for queued_url in url_batch:
                     self._set_cached_url(
-                        queued_url, IN_JOB_QUEUE, self.redis_job_timeout)
+                        queued_url, self.IN_JOB_QUEUE, self.redis_job_timeout)
 
             except Exception:
                 statsd_client.incr('request_fetch_job_create_fail')
@@ -177,14 +175,14 @@ class MetadataClient(object):
     def extract_urls_async(self, urls):
         all_cached_url_data = self.get_cached_urls(urls)
 
-        if IN_JOB_QUEUE in all_cached_url_data.values():
+        if self.IN_JOB_QUEUE in all_cached_url_data.values():
             statsd_client.incr('request_in_job_queue')
 
         cached_url_data = {
             url: url_data
             for (url, url_data)
             in all_cached_url_data.items()
-            if url_data != IN_JOB_QUEUE
+            if url_data != self.IN_JOB_QUEUE
         }
 
         uncached_urls = set(urls) - set(all_cached_url_data.keys())
@@ -197,6 +195,7 @@ class MetadataClient(object):
 
 class EmbedlyClient(MetadataClient):
     SERVICE_NAME = 'embedly'
+    TASK = staticmethod(fetch_embedly_data)
 
     def __init__(self, embedly_url, embedly_key, *args, **kwargs):
         self.embedly_url = embedly_url
@@ -229,6 +228,7 @@ class EmbedlyClient(MetadataClient):
 
 class MozillaClient(MetadataClient):
     SERVICE_NAME = 'mozilla'
+    TASK = staticmethod(fetch_mozilla_data)
 
     def __init__(self, mozilla_url, *args, **kwargs):
         self.mozilla_url = mozilla_url

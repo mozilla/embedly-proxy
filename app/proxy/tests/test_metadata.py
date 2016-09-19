@@ -33,6 +33,7 @@ class MetadataClientTest(AppTest):
 
         metadata_client = MetadataClient(**self.get_metadata_client_kwargs())
         metadata_client.SERVICE_NAME = 'test-service'
+        metadata_client.TASK = mock.Mock()
 
         metadata_client._make_remote_request = mock.Mock()
         metadata_client._make_remote_request.side_effect = _make_remote_request
@@ -234,8 +235,72 @@ class TestMetadataClientGetRemoteURLs(MetadataClientTest):
         with self.assertRaises(MetadataClient.MetadataClientException):
             self.metadata_client.get_remote_urls(self.sample_urls)
 
+    def test_task_fetches_data_and_caches(self):
+        mock_cache = {
+            url: self.metadata_client.IN_JOB_QUEUE
+            for url in self.sample_urls
+        }
 
-class TestEmbedlyClient(MetadataClientTest):
+        def mock_set(key, value, *args, **kwargs):
+            mock_cache[key] = value
+
+        def mock_get(key):
+            return mock_cache[key] if key in mock_cache else None
+
+        self.mock_redis.get.side_effect = mock_get
+        self.mock_redis.setex.side_effect = mock_set
+
+        embedly_data = self.get_mock_urls_data(self.sample_urls)
+
+        self.metadata_client._make_remote_request.return_value = (
+            self.get_mock_response(content=json.dumps(embedly_data)))
+
+        extracted_urls = self.metadata_client.get_remote_urls(self.sample_urls)
+
+        self.assertEqual(extracted_urls, self.expected_response)
+        self.assertEqual(self.mock_redis.delete.call_count, 1)
+        self.assertEqual(self.mock_redis.get.call_count, 0)
+        self.assertEqual(
+            self.mock_redis.setex.call_count, len(self.sample_urls))
+        self.assertEqual(mock_cache.keys(), self.sample_urls)
+        self.assertNotIn(
+            self.metadata_client.IN_JOB_QUEUE, mock_cache.values())
+
+    def test_task_removes_placeholder_values_if_job_fails(self):
+        existing_url = 'http://www.example.com'
+
+        mock_cache = {
+            url: self.metadata_client.IN_JOB_QUEUE
+            for url in self.sample_urls
+        }
+        mock_cache[existing_url] = self.get_mock_url_data(existing_url)
+
+        def mock_set(key, value, *args, **kwargs):
+            mock_cache[key] = value
+
+        def mock_get(key):
+            return mock_cache[key] if key in mock_cache else None
+
+        def mock_delete(*args):
+            for arg in args:
+                del mock_cache[arg]
+
+        self.mock_redis.get.side_effect = mock_get
+        self.mock_redis.setex.side_effect = mock_set
+        self.mock_redis.delete.side_effect = mock_delete
+        self.metadata_client._make_remote_request.side_effect = (
+            requests.RequestException)
+
+        with self.assertRaises(MetadataClient.MetadataClientException):
+            self.metadata_client.get_remote_urls(self.sample_urls)
+
+        self.assertEqual(self.mock_redis.delete.call_count, 1)
+        self.assertEqual(self.mock_redis.get.call_count, 0)
+        self.assertEqual(self.mock_redis.setex.call_count, 0)
+        self.assertEqual(mock_cache.keys(), [existing_url])
+
+
+class EmbedlyClientTest(MetadataClientTest):
 
     def get_metadata_client(self):
         return EmbedlyClient(
@@ -244,10 +309,8 @@ class TestEmbedlyClient(MetadataClientTest):
             **self.get_metadata_client_kwargs()
         )
 
-    def setUp(self):
-        super(TestEmbedlyClient, self).setUp()
 
-        self.expected_response = self.get_response_data(self.sample_urls)
+class TestEmbedlyClient(EmbedlyClientTest):
 
     def test_make_remote_embedly_call(self):
         self.mock_requests_get.return_value = self.get_mock_response(
@@ -281,7 +344,7 @@ class TestEmbedlyClient(MetadataClientTest):
         self.assertNotIn(embedly_modified_url, extracted_urls)
 
 
-class TestMozillaClient(MetadataClientTest):
+class MozillaClientTest(MetadataClientTest):
 
     def get_metadata_client(self):
         return MozillaClient(
@@ -296,10 +359,8 @@ class TestMozillaClient(MetadataClientTest):
             }
         }
 
-    def setUp(self):
-        super(TestMozillaClient, self).setUp()
 
-        self.expected_response = self.get_response_data(self.sample_urls)
+class TestMozillaClient(MozillaClientTest):
 
     def test_make_remote_mozilla_call(self):
         self.mock_requests_post.return_value = self.get_mock_response(
