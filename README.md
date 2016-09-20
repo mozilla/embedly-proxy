@@ -99,4 +99,5 @@ Fetch Metadata V2
   The server was unable to satisfy the request.
 
 * **Sample Call:**
+
         curl -X POST -d '{"urls":["https://www.mozilla.org"]}' -H 'content-type:application/json' https://embedly-proxy.services.mozilla.com/v2/metadata
