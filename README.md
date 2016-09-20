@@ -19,8 +19,11 @@ Fetch Metadata V2
 
 * **Service URLs**
 
-  Embedly: https://embedly-proxy.dev.mozaws.net/v2/extract
-  Mozilla: https://embedly-proxy.dev.mozaws.net/v2/metadata
+  * **Embedly**
+  - https://embedly-proxy.services.mozilla.com/v2/extract
+
+  * **Mozilla**
+  - https://embedly-proxy.services.mozilla.com/v2/metadata
 
 * **Method:**
 
