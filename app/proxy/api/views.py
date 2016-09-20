@@ -1,7 +1,7 @@
 import json
 
 import redis
-from flask import Blueprint, current_app, request, Response
+from flask import Blueprint, current_app, request as Request, Response
 from werkzeug.exceptions import HTTPException
 
 from proxy.stats import statsd_client
@@ -48,8 +48,7 @@ def version():
     )
 
 
-@blueprint.route('/v2/extract', methods=['POST'])
-def extract_urls_v2():
+def get_metadata(metadata_client, config, request):
     response_data = {
         'urls': {},
         'error': '',
@@ -72,23 +71,22 @@ def extract_urls_v2():
 
     try:
         urls = request.json['urls']
-    except (HTTPException, KeyError):
+    except (HTTPException, TypeError, KeyError):
         fail(response_data, 400,
              'POST content must be a JSON encoded dictionary {urls: [...]}')
 
-    if len(urls) > current_app.config['MAXIMUM_POST_URLS']:
+    if len(urls) > config['MAXIMUM_POST_URLS']:
         fail(response_data, 400, (
             'A single request must contain '
             'at most {max} URLs in the POST body.'
-        ).format(max=current_app.config['MAXIMUM_POST_URLS']))
+        ).format(max=config['MAXIMUM_POST_URLS']))
 
     if not all(urls):
         fail(response_data, 400, 'Do not send empty or null URLs.')
 
     try:
-        response_data['urls'] = (
-            current_app.embedly_client.extract_urls_async(urls))
-    except current_app.embedly_client.MetadataClientException, e:
+        response_data['urls'] = metadata_client.extract_urls_async(urls)
+    except metadata_client.MetadataClientException, e:
         fail(response_data, 500, e.message)
 
     return Response(
@@ -96,6 +94,18 @@ def extract_urls_v2():
         status=200,
         mimetype='application/json',
     )
+
+
+@blueprint.route('/v2/extract', methods=['POST'])
+def embedly_metadata():
+    return get_metadata(
+        current_app.embedly_client, current_app.config, Request)
+
+
+@blueprint.route('/v2/metadata', methods=['POST'])
+def mozilla_metadata():
+    return get_metadata(
+        current_app.mozilla_client, current_app.config, Request)
 
 
 @blueprint.route('/v2/recommendations', methods=['GET'])

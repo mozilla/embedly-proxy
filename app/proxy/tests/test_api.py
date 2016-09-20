@@ -1,11 +1,14 @@
 import json
-import random
 import time
 
+import mock
 import redis
+from werkzeug.exceptions import HTTPException
 
+from proxy.api.views import get_metadata
 from proxy.tests.base import AppTest
-from proxy.tests.test_metadata import MetadataClientTest
+from proxy.tests.test_metadata import (
+    EmbedlyClientTest, MozillaClientTest, MetadataClientTest)
 from proxy.tests.test_pocket import PocketClientTest
 
 
@@ -48,38 +51,54 @@ class TestVersion(AppTest):
         self.assertEqual(response.data, self.app.config['VERSION_INFO'])
 
 
-class TestExtractV2(MetadataClientTest):
+class TestGetMetadata(MetadataClientTest):
 
-    def test_request_method_must_be_post(self):
-        response = self.client.get('/v2/extract')
-        self.assertEqual(response.status_code, 405)
+    def get_config(self, **kwargs):
+        config = {
+            'MAXIMUM_POST_URLS': 10,
+        }
 
-    def test_content_type_must_be_application_json(self):
-        response = self.client.post('/v2/extract')
-        self.assertEqual(response.status_code, 400)
+        config.update(**kwargs)
+        return config
+
+    def get_mock_request(self, urls=[],
+                         content='', content_type='application/json'):
+        mock_request = mock.Mock()
+        mock_request.content_type = content_type
+        mock_request.json = content or {
+            'urls': urls,
+        }
+
+        return mock_request
+
+    def test_wrong_content_type_raises_400(self):
+        request = self.get_mock_request(content_type='\invalid')
+
+        with self.assertRaises(HTTPException) as cm:
+            get_metadata(self.metadata_client, self.get_config(), request)
+
+        self.assertEqual(cm.exception.response.status_code, 400)
 
     def test_post_body_must_be_valid_json(self):
-        response = self.client.post(
-            '/v2/extract',
-            content_type='application/json',
-        )
-        self.assertEqual(response.status_code, 400)
+        request = self.get_mock_request(content='\invalid json')
+
+        with self.assertRaises(HTTPException) as cm:
+            get_metadata(self.metadata_client, self.get_config(), request)
+
+        self.assertEqual(cm.exception.response.status_code, 400)
 
     def test_valid_json_post_body_must_include_urls(self):
-        response = self.client.post(
-            '/v2/extract',
-            data=json.dumps({}),
-            content_type='application/json',
-        )
+        request = self.get_mock_request(content=json.dumps({}))
 
-        self.assertEqual(response.status_code, 400)
+        with self.assertRaises(HTTPException) as cm:
+            get_metadata(self.metadata_client, self.get_config(), request)
+
+        self.assertEqual(cm.exception.response.status_code, 400)
 
     def test_empty_urls_param_returns_200(self):
-        response = self.client.post(
-            '/v2/extract',
-            data=json.dumps({'urls': []}),
-            content_type='application/json',
-        )
+        request = self.get_mock_request()
+        response = get_metadata(
+            self.metadata_client, self.get_config(), request)
 
         self.assertEqual(response.status_code, 200)
 
@@ -91,34 +110,61 @@ class TestExtractV2(MetadataClientTest):
 
     def test_urlextractorexception_returns_error(self):
         self.mock_redis.get.side_effect = redis.RedisError()
+        request = self.get_mock_request(urls=self.sample_urls)
 
-        response = self.client.post(
-            '/v2/extract',
-            data=json.dumps({'urls': self.sample_urls}),
-            content_type='application/json',
-        )
+        with self.assertRaises(HTTPException) as cm:
+            get_metadata(self.metadata_client, self.get_config(), request)
 
-        self.assertEqual(response.status_code, 500)
+        self.assertEqual(cm.exception.response.status_code, 500)
 
     def test_rejects_calls_with_too_many_urls(self):
-        self.app.config['MAXIMUM_POST_URLS'] = 1
+        config = self.get_config(MAXIMUM_POST_URLS=1)
+        request = self.get_mock_request(urls=self.sample_urls)
 
-        response = self.client.post(
-            '/v2/extract',
-            data=json.dumps({'urls': self.sample_urls}),
-            content_type='application/json',
-        )
+        with self.assertRaises(HTTPException) as cm:
+            get_metadata(self.metadata_client, config, request)
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(cm.exception.response.status_code, 400)
 
     def test_rejects_calls_null_urls(self):
-        response = self.client.post(
-            '/v2/extract',
-            data=json.dumps({'urls': self.sample_urls + [None]}),
-            content_type='application/json',
-        )
+        request = self.get_mock_request(urls=self.sample_urls + [None])
 
-        self.assertEqual(response.status_code, 400)
+        with self.assertRaises(HTTPException) as cm:
+            get_metadata(self.metadata_client, self.get_config(), request)
+
+        self.assertEqual(cm.exception.response.status_code, 400)
+
+    def test_extract_returns_cached_data(self):
+        cached_urls = self.sample_urls
+
+        def fake_cache(urls):
+            def mock_cache_get(cache_key):
+                for url in urls:
+                    if url in cache_key:
+                        return json.dumps(self.get_mock_url_data(url))
+
+            return mock_cache_get
+
+        self.mock_redis.get.side_effect = fake_cache(cached_urls)
+
+        request = self.get_mock_request(urls=self.sample_urls)
+        response = get_metadata(
+            self.metadata_client, self.get_config(), request)
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(self.mock_redis.get.call_count, len(self.sample_urls))
+        self.assertEqual(self.mock_redis.setex.call_count, 0)
+        self.assertEqual(self.mock_requests_get.call_count, 0)
+
+        response_data = json.loads(response.data)
+        self.assertEqual(response_data, {
+            'urls': self.expected_response,
+            'error': '',
+        })
+
+
+class TestEmbedlyMetadata(EmbedlyClientTest):
 
     def test_extract_returns_cached_data(self):
         cached_urls = self.sample_urls
@@ -138,7 +184,6 @@ class TestExtractV2(MetadataClientTest):
             data=json.dumps({'urls': self.sample_urls}),
             content_type='application/json',
         )
-
         self.assertEqual(response.status_code, 200)
 
         self.assertEqual(self.mock_redis.get.call_count, len(self.sample_urls))
@@ -151,13 +196,15 @@ class TestExtractV2(MetadataClientTest):
             'error': '',
         })
 
-    def test_extract_sends_uncached_urls_to_job_queue_in_batches(self):
-        urls = [
-            'http://www.example.com/{}'.format(random.random())
-            for i in range(5)
-        ]
-        cached_urls = urls[:1]
-        uncached_urls = urls[1:]
+    def test_request_method_must_be_post(self):
+        response = self.client.get('/v2/extract')
+        self.assertEqual(response.status_code, 405)
+
+
+class TestMozillaMetadata(MozillaClientTest):
+
+    def test_extract_returns_cached_data(self):
+        cached_urls = self.sample_urls
 
         def fake_cache(urls):
             def mock_cache_get(cache_key):
@@ -170,59 +217,25 @@ class TestExtractV2(MetadataClientTest):
         self.mock_redis.get.side_effect = fake_cache(cached_urls)
 
         response = self.client.post(
-            '/v2/extract',
-            data=json.dumps({'urls': urls}),
-            content_type='application/json',
-        )
-
-        self.assertEqual(response.status_code, 200)
-
-        self.assertEqual(self.mock_redis.get.call_count, len(urls))
-        self.assertEqual(self.mock_redis.setex.call_count, 4)
-        self.assertEqual(self.mock_requests_get.call_count, 0)
-        self.assertEqual(
-            self.mock_job_queue.enqueue.call_count,
-            (len(uncached_urls)/self.app.config['URL_BATCH_SIZE']) + 1,
-        )
-
-        response_data = json.loads(response.data)
-        self.assertEqual(response_data, {
-            'urls': {url: self.get_mock_url_data(url) for url in cached_urls},
-            'error': '',
-        })
-
-    def test_job_queue_failure_returns_cached_data(self):
-        cached_urls = self.sample_urls[:1]
-
-        def fake_cache(urls):
-            def mock_cache_get(cache_key):
-                for url in urls:
-                    if url in cache_key:
-                        return json.dumps(self.get_mock_url_data(url))
-
-            return mock_cache_get
-
-        self.mock_redis.get.side_effect = fake_cache(cached_urls)
-        self.mock_job_queue.enqueue.side_effect = Exception
-
-        response = self.client.post(
-            '/v2/extract',
+            '/v2/metadata',
             data=json.dumps({'urls': self.sample_urls}),
             content_type='application/json',
         )
-
         self.assertEqual(response.status_code, 200)
 
         self.assertEqual(self.mock_redis.get.call_count, len(self.sample_urls))
         self.assertEqual(self.mock_redis.setex.call_count, 0)
         self.assertEqual(self.mock_requests_get.call_count, 0)
-        self.assertEqual(self.mock_job_queue.enqueue.call_count, 1)
 
         response_data = json.loads(response.data)
         self.assertEqual(response_data, {
-            'urls': {url: self.get_mock_url_data(url) for url in cached_urls},
+            'urls': self.expected_response,
             'error': '',
         })
+
+    def test_request_method_must_be_post(self):
+        response = self.client.get('/v2/metadata')
+        self.assertEqual(response.status_code, 405)
 
 
 class TestPocket(PocketClientTest):
