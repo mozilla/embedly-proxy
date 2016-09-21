@@ -10,9 +10,7 @@ class TestEmbedlyURLSchema(AppTest):
 
     def get_test_image(self, **kwargs):
         test_image = {
-            'entropy': 0.1,
             'height': 200,
-            'size': 12345,
             'width': 200,
             'url': 'https://example.com/image.jpg',
         }

@@ -10,9 +10,7 @@ TEST_METADATA = {
     'description': 'Example web site',
     'favicon_url': 'https://www.example.com/favicon.ico',
     'images': [{
-        'entropy': 0.1,
         'height': 100,
-        'size': 12345,
         'url': 'https://www.example.com/image.jpg',
         'width': 100,
     }],

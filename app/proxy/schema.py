@@ -8,9 +8,7 @@ PSL = PublicSuffixList()
 
 
 class ImageSchema(Schema):
-    entropy = fields.Float(allow_none=True)
     height = fields.Int(allow_none=True)
-    size = fields.Int(allow_none=True)
     url = fields.Url(allow_none=True)
     width = fields.Int(allow_none=True)
 
