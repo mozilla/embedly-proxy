@@ -1,9 +1,11 @@
 import json
 import time
 import urllib
+import urlparse
 
 import redis
 import requests
+import rratelimit
 
 from proxy.stats import statsd_client
 from proxy.tasks import fetch_embedly_data, fetch_mozilla_data
@@ -31,6 +33,12 @@ class MetadataClient(object):
         self.job_queue = job_queue
         self.job_ttl = job_ttl
         self.url_batch_size = url_batch_size
+        self.domain_limiter = rratelimit.SimpleLimiter(
+            redis=self.redis_client,
+            action='domain_limit',
+            limit=10,
+            period=1,
+        )
 
     def _get_cache_key(self, url):
         return u'{service}:{url}'.format(service=self.SERVICE_NAME, url=url)
@@ -150,6 +158,18 @@ class MetadataClient(object):
 
         return self._parse_remote_data(urls, remote_data)
 
+    def _domain_limit_urls(self, urls):
+        allowed_urls = []
+
+        for url in urls:
+            domain = urlparse.urlparse(url).netloc
+            if self.domain_limiter.checked_insert(domain):
+                allowed_urls.append(url)
+            else:
+                statsd_client.incr('domain_rate_limit_exceeded')
+
+        return allowed_urls
+
     def get_remote_urls(self, urls):
         self._remove_cached_keys(urls)
 
@@ -188,7 +208,8 @@ class MetadataClient(object):
         uncached_urls = set(urls) - set(all_cached_url_data.keys())
 
         if uncached_urls:
-            self._queue_url_jobs(uncached_urls)
+            allowed_urls = self._domain_limit_urls(uncached_urls)
+            self._queue_url_jobs(allowed_urls)
 
         return cached_url_data
 
