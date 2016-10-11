@@ -39,6 +39,13 @@ class AppTest(TestCase):
         self.mock_requests_post = mock_requests_post_patcher.start()
         self.addCleanup(mock_requests_post_patcher.stop)
 
+        self.mock_domain_limiter = mock.Mock()
+        mock_limiter_patcher = mock.patch(
+            'proxy.metadata.rratelimit.SimpleLimiter')
+        mock_simple_limiter = mock_limiter_patcher.start()
+        mock_simple_limiter.return_value = self.mock_domain_limiter
+        self.addCleanup(mock_limiter_patcher.stop)
+
         self.mock_redis = mock.Mock()
         self.mock_redis.get.return_value = None
         self.mock_redis.setex.return_value = None

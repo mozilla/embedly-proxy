@@ -157,6 +157,26 @@ class TestMetadataClientExtractURLsAsync(MetadataClientTest):
             url: self.get_mock_url_data(url) for url in cached_urls
         })
 
+    def test_urls_are_rate_limited_by_domain(self):
+        rate_limited_domain = 'http://limit.example.com/'
+        allowed_domain = 'http://allowed.example.com/'
+
+        def rate_limit_domain(domain):
+            return domain not in rate_limited_domain
+
+        self.mock_domain_limiter.checked_insert.side_effect = rate_limit_domain
+
+        self.metadata_client.extract_urls_async([
+            rate_limited_domain,
+            allowed_domain,
+        ])
+
+        self.assertEqual(self.mock_redis.get.call_count, 2)
+        self.assertEqual(self.mock_redis.setex.call_count, 1)
+        self.assertEqual(self.mock_job_queue.enqueue.call_count, 1)
+        self.assertEqual(
+            self.mock_job_queue.enqueue.call_args[0][1], [allowed_domain])
+
 
 class TestMetadataClientGetCachedURLs(MetadataClientTest):
 
