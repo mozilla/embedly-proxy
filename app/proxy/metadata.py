@@ -162,7 +162,7 @@ class MetadataClient(object):
         allowed_urls = []
 
         for url in urls:
-            domain = urlparse.urlparse(url).netloc
+            domain = urlparse.urlparse(url).netloc.encode('utf8')
             if self.domain_limiter.checked_insert(domain):
                 allowed_urls.append(url)
             else:
