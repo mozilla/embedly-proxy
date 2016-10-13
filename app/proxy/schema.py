@@ -22,7 +22,6 @@ class EmbedlyURLSchema(Schema):
     provider_name = fields.Str(allow_none=True)
     provider_url = fields.Url(allow_none=True)
     title = fields.Str(allow_none=True)
-    type = fields.Str(allow_none=True)
     url = fields.Url(allow_none=True)
 
     def __init__(self, blocked_domains, *args, **kwargs):

@@ -19,7 +19,6 @@ TEST_METADATA = {
     'provider_name': 'Reddit',
     'provider_url': 'https://www.example.com',
     'title': 'Example web site',
-    'type': 'html',
     'url': 'https://www.example.com/'
 }
 
