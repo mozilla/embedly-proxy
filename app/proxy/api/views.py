@@ -62,7 +62,7 @@ def get_metadata(metadata_client, config, request):
             mimetype='application/json',
         ))
 
-    if 'application/json' not in request.content_type:
+    if request.content_type and 'application/json' not in request.content_type:
         fail(
             response_data,
             400,
