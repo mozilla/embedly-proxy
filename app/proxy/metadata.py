@@ -36,7 +36,7 @@ class MetadataClient(object):
         self.domain_limiter = rratelimit.SimpleLimiter(
             redis=self.redis_client,
             action='domain_limit',
-            limit=10,
+            limit=20,
             period=1,
         )
 
