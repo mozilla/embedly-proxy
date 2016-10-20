@@ -18,9 +18,7 @@ class EmbedlyURLSchema(Schema):
     favicon_url = fields.Url(allow_none=True)
     images = fields.Nested(ImageSchema, many=True)
     original_url = fields.Url(allow_none=True)
-    provider_display = fields.Str(allow_none=True)
     provider_name = fields.Str(allow_none=True)
-    provider_url = fields.Url(allow_none=True)
     title = fields.Str(allow_none=True)
     url = fields.Url(allow_none=True)
 
