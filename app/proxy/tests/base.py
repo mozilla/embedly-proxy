@@ -15,9 +15,7 @@ TEST_METADATA = {
         'width': 100,
     }],
     'original_url': 'http://www.example.com',
-    'provider_display': 'www.example.com',
     'provider_name': 'Reddit',
-    'provider_url': 'https://www.example.com',
     'title': 'Example web site',
     'url': 'https://www.example.com/'
 }
