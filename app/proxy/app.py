@@ -16,8 +16,7 @@ def get_config():
         'BLOCKED_DOMAINS': ['embedly.com'],
         'EMBEDLY_KEY': os.environ.get('EMBEDLY_KEY', None),
         'EMBEDLY_URL': 'https://api.embedly.com/1/extract',
-        'MOZILLA_URL': (
-            'https://page-metadata.services.mozilla.com/v1/metadata'),
+        'MOZILLA_URL': os.environ.get('MOZILLA_URL', None),
         'JOB_TTL': 300,
         'MAXIMUM_POST_URLS': 25,
         'POCKET_URL': (
