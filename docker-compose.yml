@@ -7,7 +7,6 @@ app:
   links:
     - redis
     - statsd
-  restart: never 
 
 worker:
   image: app:build
@@ -23,11 +22,9 @@ nginx:
     - app
   ports:
     - "80:80"
-  restart: never 
 
 redis:
   image: redis
-  restart: never
 
 statsd:
   build: ./statsd
